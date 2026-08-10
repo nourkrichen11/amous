@@ -1,0 +1,53 @@
+{
+  "name": "amous",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "seed": "tsx src/scripts/seed.ts",
+    "seed:categories": "tsx src/scripts/seedCategories.ts",
+    "payload": "payload"
+  },
+  "dependencies": {
+    "@payloadcms/db-postgres": "3.87.0",
+    "@payloadcms/next": "3.87.0",
+    "@payloadcms/richtext-lexical": "3.87.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
+    "esbuild": "^0.28.1",
+    "lucide-react": "^0.562.0",
+    "next": "16.2.12",
+    "payload": "3.87.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sharp": "^0.34.5",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@types/node": "^24.10.4",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "16.2.12",
+    "jsdom": "^27.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "^16.2.12"
+  }
+}

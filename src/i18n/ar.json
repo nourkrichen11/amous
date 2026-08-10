@@ -1,0 +1,171 @@
+{
+  "navigation": {
+    "home": "الرئيسية",
+    "shop": "المتجر",
+    "categories": "الفئات",
+    "brands": "العلامات",
+    "promotions": "العروض",
+    "newArrivals": "الجديد",
+    "professionals": "المهنيون",
+    "about": "من نحن",
+    "contact": "اتصل بنا",
+    "primary": "التنقل الرئيسي",
+    "search": "البحث",
+    "account": "الحساب",
+    "wishlist": "المفضلة",
+    "cart": "السلة",
+    "menu": "القائمة",
+    "skipToContent": "الانتقال إلى المحتوى",
+    "switchToFrench": "التبديل إلى الفرنسية",
+    "switchToArabic": "التبديل إلى العربية"
+  },
+  "catalogue": {
+    "productsCount": "{count} منتج",
+    "filters": "الفلاتر",
+    "sort": "الترتيب",
+    "empty": "لا توجد منتجات نشطة تطابق هذا الاختيار.",
+    "inStockOnly": "المتوفر فقط",
+    "promotionOnly": "العروض فقط",
+    "minPrice": "أدنى سعر",
+    "maxPrice": "أعلى سعر",
+    "brand": "العلامة",
+    "category": "الفئة",
+    "apply": "تطبيق",
+    "reset": "إعادة الضبط"
+  },
+  "product": {
+    "addToCart": "أضف إلى السلة",
+    "upcomingCart": "السلة ستتوفر لاحقاً",
+    "outOfStock": "غير متوفر",
+    "inStock": "متوفر",
+    "lowStock": "كمية محدودة",
+    "sku": "المرجع",
+    "unit": "الوحدة",
+    "vat": "شامل الأداء",
+    "quantity": "الكمية",
+    "technicalAttributes": "المواصفات الفنية",
+    "description": "الوصف",
+    "relatedProducts": "منتجات مشابهة",
+    "whatsappInquiry": "استفسار عبر واتساب",
+    "featured": "مختار",
+    "new": "جديد",
+    "promotion": "عرض"
+  },
+  "search": {
+    "title": "البحث",
+    "placeholder": "ابحث عن منتج أو مرجع أو علامة...",
+    "empty": "لا توجد نتائج لهذا البحث.",
+    "resultsFor": "نتائج البحث عن \"{query}\""
+  },
+  "common": {
+    "close": "إغلاق",
+    "loading": "جارٍ التحميل...",
+    "error": "حدث خطأ.",
+    "retry": "إعادة المحاولة",
+    "notFound": "الصفحة غير موجودة",
+    "viewProduct": "عرض المنتج"
+  },
+  "home": {
+    "featuredCategories": "الفئات الرئيسية",
+    "featuredProducts": "منتجات مختارة",
+    "promotions": "العروض الحالية",
+    "featuredBrands": "علامات مميزة",
+    "benefits": "خدمات أموس",
+    "contact": "تحتاج إلى نصيحة؟",
+    "heroFallback": "سيظهر الهيرو في الصفحة الرئيسية هنا فور إعداد شريحة واحدة نشطة ومنشورة على الأقل داخل Payload."
+  },
+  "cart": {
+    "adding": "جارٍ الإضافة...",
+    "checkout": "إتمام الطلب",
+    "clear": "إفراغ السلة",
+    "continueShopping": "متابعة التسوق",
+    "deliveryAtCheckout": "يتم احتساب التوصيل في صفحة الطلب.",
+    "empty": "سلتك فارغة.",
+    "emptyDescription": "أضف منتجات من المتجر لبدء طلبك.",
+    "issues": "نقاط يجب مراجعتها",
+    "itemsCount": "{count} منتج في السلة",
+    "miniCart": "السلة المختصرة",
+    "remove": "حذف",
+    "subtotal": "المجموع الفرعي",
+    "summary": "الملخص",
+    "title": "السلة",
+    "total": "المجموع",
+    "totalBeforeDelivery": "المجموع قبل التوصيل",
+    "update": "تحديث",
+    "vat": "الأداء",
+    "viewCart": "عرض السلة",
+    "issue": {
+      "invalid_quantity": "إحدى الكميات غير صالحة.",
+      "minimum_quantity_changed": "تم تعديل كمية حسب الحد الأدنى.",
+      "out_of_stock": "أحد المنتجات غير متوفر.",
+      "price_changed": "تغير سعر منتج وتمت إعادة الحساب.",
+      "product_unavailable": "أحد المنتجات لم يعد متاحاً.",
+      "quantity_reduced": "تم تخفيض كمية حسب المخزون المتاح."
+    }
+  },
+  "checkout": {
+    "address": "العنوان",
+    "addressLine1": "العنوان",
+    "calculatedAfterAddress": "يُحسب بعد العنوان",
+    "city": "المدينة",
+    "customerInfo": "معلومات العميل",
+    "customerNote": "ملاحظة للطلب",
+    "deliveryInstructions": "تعليمات التوصيل",
+    "email": "البريد الإلكتروني",
+    "firstName": "الاسم",
+    "governorate": "الولاية",
+    "lastName": "اللقب",
+    "phone": "الهاتف",
+    "placeOrder": "تأكيد الطلب",
+    "postalCode": "الترقيم البريدي",
+    "review": "مراجعة الطلب",
+    "terms": "أوافق على شروط البيع.",
+    "title": "الطلب",
+    "error": {
+      "cart_empty": "السلة فارغة.",
+      "cart_invalid": "يجب مراجعة السلة قبل الطلب.",
+      "delivery_unavailable": "التوصيل غير متوفر.",
+      "pickup_unavailable": "الاستلام من المتجر غير متوفر.",
+      "unsupported_delivery_zone": "منطقة التوصيل غير مدعومة.",
+      "validation": "يرجى مراجعة المعلومات المدخلة."
+    }
+  },
+  "delivery": {
+    "homeDelivery": "توصيل إلى المنزل",
+    "storePickup": "استلام من المتجر",
+    "title": "التوصيل"
+  },
+  "payment": {
+    "cashOnDelivery": "الدفع عند الاستلام",
+    "title": "الدفع"
+  },
+  "order": {
+    "confirmationTitle": "تم تأكيد الطلب",
+    "contactSupport": "الاتصال بالدعم",
+    "items": "المنتجات المطلوبة",
+    "number": "رقم الطلب",
+    "status": "الحالة",
+    "success": "تم إنشاء طلبك بنجاح.",
+    "supportMessage": "مرحباً، أريد الاستفسار عن الطلب",
+    "statusValue": {
+      "cancelled": "ملغى",
+      "confirmed": "مؤكد",
+      "delivered": "تم التسليم",
+      "preparing": "قيد التحضير",
+      "ready_for_pickup": "جاهز للاستلام",
+      "received": "تم الاستلام",
+      "shipped": "تم الشحن"
+    }
+  },
+  "footer": {
+    "shop": "المتجر",
+    "help": "المساعدة",
+    "company": "أموس",
+    "legal": "معلومات قانونية",
+    "delivery": "التوصيل",
+    "payment": "الدفع",
+    "returns": "الإرجاع",
+    "stores": "المتاجر",
+    "services": "الخدمات"
+  }
+}

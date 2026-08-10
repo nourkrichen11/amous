@@ -1,0 +1,171 @@
+{
+  "navigation": {
+    "home": "Accueil",
+    "shop": "Boutique",
+    "categories": "Catégories",
+    "brands": "Marques",
+    "promotions": "Promotions",
+    "newArrivals": "Nouveautés",
+    "professionals": "Professionnels",
+    "about": "À propos",
+    "contact": "Contact",
+    "primary": "Navigation principale",
+    "search": "Recherche",
+    "account": "Compte",
+    "wishlist": "Favoris",
+    "cart": "Panier",
+    "menu": "Menu",
+    "skipToContent": "Aller au contenu",
+    "switchToFrench": "Passer en français",
+    "switchToArabic": "Passer en arabe"
+  },
+  "catalogue": {
+    "productsCount": "{count} produit(s)",
+    "filters": "Filtres",
+    "sort": "Trier",
+    "empty": "Aucun produit actif ne correspond à cette sélection.",
+    "inStockOnly": "En stock uniquement",
+    "promotionOnly": "Promotions uniquement",
+    "minPrice": "Prix minimum",
+    "maxPrice": "Prix maximum",
+    "brand": "Marque",
+    "category": "Catégorie",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser"
+  },
+  "product": {
+    "addToCart": "Ajouter au panier",
+    "upcomingCart": "Panier bientôt disponible",
+    "outOfStock": "Rupture de stock",
+    "inStock": "En stock",
+    "lowStock": "Stock limité",
+    "sku": "Réf.",
+    "unit": "Unité",
+    "vat": "TVA incluse",
+    "quantity": "Quantité",
+    "technicalAttributes": "Caractéristiques techniques",
+    "description": "Description",
+    "relatedProducts": "Produits similaires",
+    "whatsappInquiry": "Demander sur WhatsApp",
+    "featured": "Sélection",
+    "new": "Nouveau",
+    "promotion": "Promo"
+  },
+  "search": {
+    "title": "Recherche",
+    "placeholder": "Rechercher un produit, une référence, une marque...",
+    "empty": "Aucun résultat pour cette recherche.",
+    "resultsFor": "Résultats pour \"{query}\""
+  },
+  "common": {
+    "close": "Fermer",
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue.",
+    "retry": "Réessayer",
+    "notFound": "Page introuvable",
+    "viewProduct": "Voir le produit"
+  },
+  "home": {
+    "featuredCategories": "Catégories principales",
+    "featuredProducts": "Produits sélectionnés",
+    "promotions": "Promotions en cours",
+    "featuredBrands": "Marques à découvrir",
+    "benefits": "Services Amous",
+    "contact": "Besoin d'un conseil ?",
+    "heroFallback": "Le hero de la page d'accueil sera visible ici dès qu'au moins une slide active et publiée sera configurée dans Payload."
+  },
+  "cart": {
+    "adding": "Ajout...",
+    "checkout": "Passer la commande",
+    "clear": "Vider le panier",
+    "continueShopping": "Continuer mes achats",
+    "deliveryAtCheckout": "La livraison est calculée à l'étape de commande.",
+    "empty": "Votre panier est vide.",
+    "emptyDescription": "Ajoutez des produits depuis la boutique pour commencer une commande.",
+    "issues": "Points à vérifier",
+    "itemsCount": "{count} article(s) dans le panier",
+    "miniCart": "Mini-panier",
+    "remove": "Retirer",
+    "subtotal": "Sous-total",
+    "summary": "Résumé",
+    "title": "Panier",
+    "total": "Total",
+    "totalBeforeDelivery": "Total avant livraison",
+    "update": "Mettre à jour",
+    "vat": "TVA",
+    "viewCart": "Voir le panier",
+    "issue": {
+      "invalid_quantity": "Une quantité n'est pas valide.",
+      "minimum_quantity_changed": "Une quantité a été ajustée au minimum requis.",
+      "out_of_stock": "Un produit est en rupture de stock.",
+      "price_changed": "Un prix a changé. Le panier a été recalculé.",
+      "product_unavailable": "Un produit n'est plus disponible.",
+      "quantity_reduced": "Une quantité a été réduite selon le stock disponible."
+    }
+  },
+  "checkout": {
+    "address": "Adresse",
+    "addressLine1": "Adresse",
+    "calculatedAfterAddress": "Calculée après adresse",
+    "city": "Ville",
+    "customerInfo": "Informations client",
+    "customerNote": "Note pour la commande",
+    "deliveryInstructions": "Instructions de livraison",
+    "email": "Email",
+    "firstName": "Prénom",
+    "governorate": "Gouvernorat",
+    "lastName": "Nom",
+    "phone": "Téléphone",
+    "placeOrder": "Confirmer la commande",
+    "postalCode": "Code postal",
+    "review": "Vérification de commande",
+    "terms": "J'accepte les conditions de vente.",
+    "title": "Commande",
+    "error": {
+      "cart_empty": "Votre panier est vide.",
+      "cart_invalid": "Votre panier doit être vérifié avant de commander.",
+      "delivery_unavailable": "La livraison n'est pas disponible.",
+      "pickup_unavailable": "Le retrait magasin n'est pas disponible.",
+      "unsupported_delivery_zone": "Cette zone de livraison n'est pas prise en charge.",
+      "validation": "Vérifiez les informations saisies."
+    }
+  },
+  "delivery": {
+    "homeDelivery": "Livraison à domicile",
+    "storePickup": "Retrait magasin",
+    "title": "Livraison"
+  },
+  "payment": {
+    "cashOnDelivery": "Paiement à la livraison",
+    "title": "Paiement"
+  },
+  "order": {
+    "confirmationTitle": "Commande confirmée",
+    "contactSupport": "Contacter le support",
+    "items": "Articles commandés",
+    "number": "Commande",
+    "status": "Statut",
+    "success": "Votre commande a bien été créée.",
+    "supportMessage": "Bonjour, je vous contacte au sujet de la commande",
+    "statusValue": {
+      "cancelled": "Annulée",
+      "confirmed": "Confirmée",
+      "delivered": "Livrée",
+      "preparing": "En préparation",
+      "ready_for_pickup": "Prête pour retrait",
+      "received": "Reçue",
+      "shipped": "Expédiée"
+    }
+  },
+  "footer": {
+    "shop": "Boutique",
+    "help": "Aide",
+    "company": "Amous",
+    "legal": "Informations légales",
+    "delivery": "Livraison",
+    "payment": "Paiement",
+    "returns": "Retours",
+    "stores": "Magasins",
+    "services": "Services"
+  }
+}

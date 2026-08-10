@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Amous product placeholder</title>
+  <rect width="640" height="480" fill="#e2e8f0"/>
+  <rect x="96" y="96" width="448" height="288" rx="16" fill="#f8fafc" stroke="#94a3b8" stroke-width="4"/>
+  <path d="M218 305h204l-60-74-46 54-32-38-66 58Z" fill="#cbd5e1"/>
+  <circle cx="260" cy="190" r="28" fill="#f59e0b"/>
+  <text x="320" y="415" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0f766e">Amous</text>
+</svg>
