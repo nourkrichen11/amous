@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { normalizePhone } from '@/lib/phone'
+
 function trimmedRequiredString(min: number, max: number) {
   return z.string().trim().min(min).max(max)
 }
@@ -9,25 +11,7 @@ export function normalizeEmail(email: string) {
 }
 
 export function normalizeTunisianPhone(phone?: string | null) {
-  if (!phone) {
-    return undefined
-  }
-
-  const cleaned = phone.replaceAll(/[^\d+]/g, '')
-
-  if (!cleaned) {
-    return undefined
-  }
-
-  if (cleaned.startsWith('+216')) {
-    return `+216${cleaned.slice(4).replaceAll(/\D/g, '')}`
-  }
-
-  if (cleaned.startsWith('216') && cleaned.length === 11) {
-    return `+${cleaned}`
-  }
-
-  return cleaned.replaceAll(/\D/g, '')
+  return normalizePhone(phone)
 }
 
 export function isValidReturnTo(returnTo?: string | null) {
@@ -112,7 +96,7 @@ export const addressSchema = z.object({
   addressLine1: trimmedRequiredString(4, 160),
   addressLine2: z.string().trim().max(160).optional(),
   city: trimmedRequiredString(2, 80),
-  country: z.literal('Tunisia').default('Tunisia'),
+  country: z.union([z.literal('TN'), z.literal('Tunisia')]).default('TN'),
   firstName: trimmedRequiredString(2, 80),
   governorate: trimmedRequiredString(2, 80),
   isDefault: z.boolean().default(false),

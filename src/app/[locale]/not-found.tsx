@@ -1,10 +1,9 @@
 import Link from 'next/link'
 
-import { resolveLocaleFromHeaders } from '@/lib/locale/resolveLocale'
-import { t } from '@/i18n/config'
+import { defaultLocale, t } from '@/i18n/config'
 
-export default async function LocaleNotFound() {
-  const locale = await resolveLocaleFromHeaders()
+export default function LocaleNotFound() {
+  const locale = defaultLocale
 
   return (
     <main className="container-page grid min-h-[60vh] place-items-center py-16 text-center">

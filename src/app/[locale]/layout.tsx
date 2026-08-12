@@ -2,16 +2,9 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 
-import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
-import { Footer } from '@/components/layout/Footer'
-import { Header } from '@/components/layout/Header'
-import { getCategories, getSiteSettings } from '@/features/catalogue/data'
-import { getHeader } from '@/features/homepage/data'
-import { getCurrentUserSummary } from '@/features/auth/session'
-import { getCartCookie } from '@/features/cart/cookies'
-import { validateCart } from '@/features/cart/service'
+import { getDirection, isLocale, type Locale } from '@/i18n/config'
+import { getSiteSettings } from '@/features/catalogue/data'
 import { resolveLocaleFromParams } from '@/lib/locale/resolveLocale'
-import { isLocale, t, type Locale } from '@/i18n/config'
 
 type LocaleLayoutProps = {
   children: ReactNode
@@ -46,24 +39,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
 
   const normalizedLocale: Locale = locale
-  const cartCookie = await getCartCookie()
-  const [settings, categories, header, cart, currentUser] = await Promise.all([
-    getSiteSettings(normalizedLocale),
-    getCategories(normalizedLocale),
-    getHeader(normalizedLocale),
-    validateCart(cartCookie, normalizedLocale),
-    getCurrentUserSummary()
-  ])
 
-  return (
-    <>
-      <a className="skip-link" href="#main-content">
-        {t(normalizedLocale, 'navigation.skipToContent')}
-      </a>
-      <AnnouncementBar text={header.announcementText} />
-      <Header cart={cart} currentUser={currentUser} data={header} locale={normalizedLocale} />
-      {children}
-      <Footer categories={categories} locale={normalizedLocale} settings={settings} />
-    </>
-  )
+  return <div dir={getDirection(normalizedLocale)} lang={normalizedLocale}>{children}</div>
 }

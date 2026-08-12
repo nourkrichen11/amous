@@ -5,13 +5,15 @@ import { ProductCard } from '@/components/product/ProductCard'
 type ProductGridProps = {
   locale: Locale
   products: ProductItem[]
+  sourcePath?: string
+  view?: 'grid' | 'list'
 }
 
-export function ProductGrid({ locale, products }: ProductGridProps) {
+export function ProductGrid({ locale, products, sourcePath, view = 'grid' }: ProductGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+    <div className={view === 'list' ? 'grid grid-cols-1 gap-4' : 'product-grid'}>
       {products.map((product) => (
-        <ProductCard key={String(product.id)} locale={locale} product={product} />
+        <ProductCard key={String(product.id)} layout={view} locale={locale} product={product} sourcePath={sourcePath} />
       ))}
     </div>
   )

@@ -1,6 +1,5 @@
-import { unstable_noStore as noStore } from 'next/cache'
-
 import { getPayloadClient } from '@/lib/payload/getPayload'
+import { STOREFRONT_REVALIDATE, STOREFRONT_TAGS, cacheByLocale } from '@/lib/cache/storefront'
 import type { MediaItem } from '@/features/catalogue/types'
 import type { Locale } from '@/i18n/config'
 import { t } from '@/i18n/config'
@@ -53,7 +52,7 @@ function getFallbackNavigation(locale: Locale): HeaderNavItem[] {
   return [
     { id: 'home', label: t(locale, 'navigation.home'), url: `/${locale}` },
     { id: 'shop', label: t(locale, 'navigation.shop'), url: `/${locale}/boutique` },
-    { id: 'categories', isCategoryTrigger: true, label: t(locale, 'navigation.categories'), url: `/${locale}/boutique` },
+    { id: 'categories', isCategoryTrigger: true, label: t(locale, 'navigation.categories'), url: `/${locale}/nos-categories` },
     { id: 'brands', label: t(locale, 'navigation.brands'), url: `/${locale}/boutique` },
     { id: 'promotions', label: t(locale, 'navigation.promotions'), url: `/${locale}/boutique?promotion=1` },
     { id: 'new', label: t(locale, 'navigation.newArrivals'), url: `/${locale}/boutique?sort=new` },
@@ -149,8 +148,6 @@ function mapHeroSlide(slide: HeroSlideDoc, locale: Locale): HeroSlide | undefine
 }
 
 export async function getHeader(locale: Locale): Promise<HeaderData> {
-  noStore()
-
   const fallback: HeaderData = {
     navigationItems: getFallbackNavigation(locale),
     searchPlaceholder:
@@ -163,87 +160,107 @@ export async function getHeader(locale: Locale): Promise<HeaderData> {
     stickyHeaderEnabled: true
   }
 
-  try {
-    const payload = await getPayloadClient()
-    const header = (await payload.findGlobal({
-      depth: 1,
-      locale,
-      slug: 'header'
-    })) as HeaderGlobalDoc
+  return cacheByLocale(
+    'header',
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const header = (await payload.findGlobal({
+          depth: 1,
+          locale,
+          slug: 'header'
+        })) as HeaderGlobalDoc
 
-    return {
-      announcementText: header.announcementText,
-      logo: resolveMedia(header.logo, locale),
-      navigationItems: mapNavigation(locale, header.navigationItems),
-      searchPlaceholder: header.searchPlaceholder || fallback.searchPlaceholder,
-      showAccount: header.showAccount ?? true,
-      showCart: header.showCart ?? true,
-      showWishlist: header.showWishlist ?? true,
-      stickyHeaderEnabled: header.stickyHeaderEnabled ?? true
+        return {
+          announcementText: header.announcementText,
+          logo: resolveMedia(header.logo, locale),
+          navigationItems: mapNavigation(locale, header.navigationItems),
+          searchPlaceholder: header.searchPlaceholder || fallback.searchPlaceholder,
+          showAccount: header.showAccount ?? true,
+          showCart: header.showCart ?? true,
+          showWishlist: header.showWishlist ?? true,
+          stickyHeaderEnabled: header.stickyHeaderEnabled ?? true
+        }
+      } catch {
+        return fallback
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.header,
+      tags: [STOREFRONT_TAGS.header]
     }
-  } catch {
-    return fallback
-  }
+  )
 }
 
 export async function getHeroSlides(locale: Locale, now = new Date()): Promise<HeroSlide[]> {
-  noStore()
+  const timeBucket = Math.floor(now.getTime() / (15 * 60 * 1000))
 
-  try {
-    const payload = await getPayloadClient()
-    const isoDate = now.toISOString()
-    const result = await payload.find({
-      collection: 'hero-slides',
-      depth: 1,
-      draft: false,
-      limit: 3,
-      locale,
-      sort: 'displayOrder',
-      where: {
-        and: [
-          {
-            active: {
-              equals: true
-            }
-          },
-          {
-            or: [
+  return cacheByLocale(
+    `hero-${timeBucket}`,
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const isoDate = now.toISOString()
+        const result = await payload.find({
+          collection: 'hero-slides',
+          depth: 1,
+          draft: false,
+          limit: 3,
+          locale,
+          sort: 'displayOrder',
+          where: {
+            and: [
               {
-                startDate: {
-                  exists: false
+                active: {
+                  equals: true
                 }
               },
               {
-                startDate: {
-                  less_than_equal: isoDate
-                }
-              }
-            ]
-          },
-          {
-            or: [
-              {
-                endDate: {
-                  exists: false
-                }
+                or: [
+                  {
+                    startDate: {
+                      exists: false
+                    }
+                  },
+                  {
+                    startDate: {
+                      less_than_equal: isoDate
+                    }
+                  }
+                ]
               },
               {
-                endDate: {
-                  greater_than_equal: isoDate
-                }
+                or: [
+                  {
+                    endDate: {
+                      exists: false
+                    }
+                  },
+                  {
+                    endDate: {
+                      greater_than_equal: isoDate
+                    }
+                  }
+                ]
               }
             ]
           }
-        ]
-      }
-    })
+        })
 
-    return (result.docs as HeroSlideDoc[])
-      .map((slide) => mapHeroSlide(slide, locale))
-      .filter((slide): slide is HeroSlide => Boolean(slide))
-  } catch {
-    return []
-  }
+        return (result.docs as HeroSlideDoc[])
+          .map((slide) => mapHeroSlide(slide, locale))
+          .filter((slide): slide is HeroSlide => Boolean(slide))
+      } catch {
+        return []
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.hero,
+      tags: [STOREFRONT_TAGS.hero, STOREFRONT_TAGS.homepage]
+    }
+  )
 }
 
 export function getHeroMetadata(slides: HeroSlide[], locale: Locale) {

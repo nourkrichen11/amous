@@ -36,7 +36,7 @@ describe('CategoryCard', () => {
     expect(screen.getByRole('link', { name: /Outillage à main/i })).toHaveAttribute('href', '/fr/c/outillage-a-main')
     expect(screen.getByText('Outillage à main')).toBeInTheDocument()
     expect(screen.getByText(/Marteaux, tournevis/)).toBeInTheDocument()
-    expect(screen.getByText('Découvrir →')).toBeInTheDocument()
+    expect(screen.getByText('Découvrir')).toBeInTheDocument()
     expect(screen.getByAltText(category.image?.alt || '')).toBeInTheDocument()
   })
 })

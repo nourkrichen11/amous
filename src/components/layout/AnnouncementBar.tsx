@@ -8,7 +8,7 @@ export function AnnouncementBar({ text }: AnnouncementBarProps) {
   }
 
   return (
-    <div className="bg-[var(--color-secondary)] py-2 text-center text-sm font-medium text-white">
+    <div className="flex min-h-[34px] items-center bg-[var(--color-secondary)] py-1 text-center text-sm font-medium text-white">
       <p className="container-page">{text}</p>
     </div>
   )

@@ -357,7 +357,7 @@ const headerNavigation = {
   fr: [
     { label: 'Accueil', url: '/fr' },
     { label: 'Boutique', url: '/fr/boutique' },
-    { isCategoryTrigger: true, label: 'Catégories', url: '/fr/boutique' },
+    { isCategoryTrigger: true, label: 'Catégories', url: '/fr/nos-categories' },
     { label: 'Marques', url: '/fr/boutique' },
     { label: 'Promotions', url: '/fr/boutique?promotion=1' },
     { label: 'Nouveautés', url: '/fr/boutique?sort=new' },

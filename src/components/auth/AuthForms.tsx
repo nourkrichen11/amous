@@ -12,7 +12,7 @@ export function LoginForm({ locale, returnTo }: { locale: Locale; returnTo?: str
   const [state, formAction] = useActionState<AuthFormState, FormData>(loginAction, {})
 
   return (
-    <form action={formAction} className="grid gap-5" noValidate>
+    <form action={formAction} className="grid gap-[18px]" noValidate>
       <input name="locale" type="hidden" value={locale} />
       <input name="returnTo" type="hidden" value={returnTo || ''} />
       <AuthAlert message={state.message} />
@@ -36,7 +36,7 @@ export function LoginForm({ locale, returnTo }: { locale: Locale; returnTo?: str
 
       <SubmitButton idleLabel="Se connecter" pendingLabel="Connexion..." />
 
-      <div className="rounded-2xl border border-[#DDE3EA] bg-[#F5F7FA] px-4 py-3 text-sm leading-6 text-[#526173]">
+      <div className="hidden rounded-xl border border-[#DDE3EA] bg-[#F5F7FA] px-4 py-2.5 text-xs leading-5 text-[#526173] min-[1400px]:block sm:text-sm">
         Vos informations sont protégées et utilisées uniquement pour gérer votre compte et vos commandes.
       </div>
     </form>
@@ -48,12 +48,12 @@ export function RegisterForm({ locale, returnTo }: { locale: Locale; returnTo?: 
   const [password, setPassword] = useState('')
 
   return (
-    <form action={formAction} className="grid gap-5" noValidate>
+    <form action={formAction} className="grid gap-4" noValidate>
       <input name="locale" type="hidden" value={locale} />
       <input name="returnTo" type="hidden" value={returnTo || ''} />
       <AuthAlert message={state.message} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <FormField error={state.fieldErrors?.firstName} icon="name" label="Prénom" name="firstName" />
         <FormField error={state.fieldErrors?.lastName} icon="name" label="Nom" name="lastName" />
       </div>
@@ -85,7 +85,7 @@ export function RegisterForm({ locale, returnTo }: { locale: Locale; returnTo?: 
         name="passwordConfirmation"
       />
 
-      <label className="flex items-start gap-3 rounded-2xl border border-[#DDE3EA] bg-[#F5F7FA] px-4 py-3 text-sm leading-6 text-[#344255]">
+      <label className="flex items-start gap-3 rounded-xl border border-[#DDE3EA] bg-[#F5F7FA] px-4 py-2.5 text-sm leading-5 text-[#344255]">
         <input className="mt-1 h-4 w-4 rounded border-[#C4CED8]" name="acceptTerms" type="checkbox" />
         <span>
           J’accepte les conditions générales et la politique de confidentialité.

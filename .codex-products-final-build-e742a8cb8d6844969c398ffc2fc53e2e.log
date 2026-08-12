@@ -1,0 +1,78 @@
+
+> amous@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.2.12 (webpack)
+- Environments: .env.local
+- Experiments (use with caution):
+  ✓ useWasmBinary
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.3min
+  Running TypeScript ...
+  Finished TypeScript in 28.3s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/27) ...
+[00:47:37] [33mWARN[39m: [36mImage resizing is enabled for one or more collections, but sharp not installed. Please install 'sharp' and pass into the config.[39m
+  Generating static pages using 11 workers (6/27) 
+  Generating static pages using 11 workers (13/27) 
+  Generating static pages using 11 workers (20/27) 
+✓ Generating static pages using 11 workers (27/27) in 1714ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /[locale]
+├ ƒ /[locale]/boutique
+├ ƒ /[locale]/c/[categorySlug]
+├ ƒ /[locale]/commande
+├ ƒ /[locale]/commande/confirmation/[orderNumber]
+├ ƒ /[locale]/connexion
+├ ƒ /[locale]/deconnexion
+├ ƒ /[locale]/inscription
+├ ƒ /[locale]/mon-compte
+├ ƒ /[locale]/mon-compte/adresses
+├ ƒ /[locale]/mon-compte/commandes
+├ ƒ /[locale]/mon-compte/commandes/[orderId]
+├ ƒ /[locale]/mon-compte/profil
+├ ƒ /[locale]/mon-compte/securite
+├ ƒ /[locale]/mot-de-passe-oublie
+├ ƒ /[locale]/nos-categories
+├ ƒ /[locale]/p/[productSlug]
+├ ƒ /[locale]/panier
+├ ƒ /[locale]/recherche
+├ ƒ /[locale]/reinitialiser-mot-de-passe
+├ ƒ /admin/[[...segments]]
+├ ƒ /api/[...slug]
+├ ƒ /api/admin/search
+├ ƒ /api/auth/change-password
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/auth/register
+├ ƒ /api/auth/reset-password
+├ ƒ /api/customers/me
+├ ƒ /api/customers/me/orders
+├ ƒ /api/customers/me/orders/[orderId]
+├ ƒ /api/graphql
+├ ƒ /api/graphql-playground
+├ ƒ /api/storefront/header-state
+├ ƒ /backoffice
+├ ƒ /backoffice/content
+├ ƒ /backoffice/customers
+├ ƒ /backoffice/delivery
+├ ƒ /backoffice/inventory
+├ ƒ /backoffice/orders
+├ ƒ /backoffice/products
+├ ƒ /backoffice/promotions
+├ ƒ /backoffice/settings
+├ ○ /robots.txt
+└ ƒ /sitemap.xml
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

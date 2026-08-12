@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getCurrentUser } from '@/features/auth/session'
-import { updateProfile } from '@/features/auth/service'
+import { updateOwnProfile } from '@/features/auth/service'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -33,12 +33,11 @@ export async function PATCH(request: Request) {
   }
 
   const body = (await request.json()) as Record<string, unknown>
-  const result = await updateProfile({
+  const result = await updateOwnProfile(user, {
     email: typeof body.email === 'string' ? body.email : user.email,
     firstName: typeof body.firstName === 'string' ? body.firstName : user.firstName,
     lastName: typeof body.lastName === 'string' ? body.lastName : user.lastName,
-    phone: typeof body.phone === 'string' ? body.phone : user.phone,
-    userId: user.id
+    phone: typeof body.phone === 'string' ? body.phone : user.phone
   })
 
   if (!result.ok) {

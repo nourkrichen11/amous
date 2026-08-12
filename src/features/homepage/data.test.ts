@@ -10,6 +10,24 @@ vi.mock('@/lib/payload/getPayload', () => ({
   })
 }))
 
+vi.mock('@/lib/cache/storefront', () => ({
+  STOREFRONT_REVALIDATE: {
+    header: 3600,
+    hero: 1800,
+    homepage: 600
+  },
+  STOREFRONT_TAGS: {
+    header: 'header',
+    hero: 'hero',
+    homepage: 'homepage'
+  },
+  cacheByLocale: <T,>(key: string, locale: string, loader: () => Promise<T>) => {
+    void key
+    void locale
+    return loader()
+  }
+}))
+
 describe('homepage data', () => {
   beforeEach(() => {
     findMock.mockReset()

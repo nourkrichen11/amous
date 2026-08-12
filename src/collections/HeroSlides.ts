@@ -1,11 +1,14 @@
 import type { CollectionConfig } from 'payload'
 
 import { isAdmin } from '@/access/isAdmin'
+import { makeCollectionDeleteRevalidationHook, makeCollectionRevalidationHook } from '@/lib/cache/invalidation'
+import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const HeroSlides: CollectionConfig = {
   slug: 'hero-slides',
   admin: {
     defaultColumns: ['internalName', 'active', 'displayOrder', 'startDate', 'endDate', 'updatedAt'],
+    group: 'Contenu',
     useAsTitle: 'internalName'
   },
   access: {
@@ -13,6 +16,10 @@ export const HeroSlides: CollectionConfig = {
     delete: isAdmin,
     read: () => true,
     update: isAdmin
+  },
+  hooks: {
+    afterChange: [makeCollectionRevalidationHook([STOREFRONT_TAGS.hero, STOREFRONT_TAGS.homepage])],
+    afterDelete: [makeCollectionDeleteRevalidationHook([STOREFRONT_TAGS.hero, STOREFRONT_TAGS.homepage])]
   },
   versions: {
     drafts: true

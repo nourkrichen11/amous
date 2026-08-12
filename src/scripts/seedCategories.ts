@@ -12,7 +12,30 @@ loadEnv({ path: '.env.local', quiet: true })
 loadEnv({ quiet: true })
 
 const categoryImagesDirectory = path.resolve('public/images/categories')
+const amousCategoryIconsDirectory = path.resolve('media/amous-category-icons')
 const placeholderImagePath = path.join(categoryImagesDirectory, 'category-placeholder.webp')
+
+const amousCategoryIconFiles: Record<string, string> = {
+  abrasifs: 'abrasive.webp',
+  'ateliers-professionnels': 'ateliers-professionnels.webp',
+  'boulonnerie-visserie': 'boulonnerie.webp',
+  'coupe-et-percage': 'outils-de-coupe-et-percage.webp',
+  electricite: 'electricite.webp',
+  jardinage: 'jardinage.webp',
+  maison: 'maison.webp',
+  'manutention-et-levage': 'manutention-et-levage.webp',
+  'materiel-equipement': 'materiels-d-equipement.webp',
+  'mesure-et-controle': 'mesure-et-controle.webp',
+  'outillage-a-main': 'outil-a-main.webp',
+  'outillage-electroportatif': 'outil-electro-portatif.webp',
+  peinture: 'peinture.webp',
+  pneumatique: 'pneumatique.webp',
+  'pompes-et-generateurs': 'pompes-et-generateurs.webp',
+  'protection-et-securite': 'protection-et-securite.webp',
+  quincaillerie: 'quincaillerie.webp',
+  soudage: 'soudage-et-accessoires.webp',
+  'tuyauterie-et-accessoires': 'tuyauterie-et-accessoires.webp'
+}
 
 type SeedStats = {
   created: number
@@ -70,15 +93,22 @@ async function upsertCategoryMedia({
   filePath,
   payload,
   slug,
+  source,
   usesPlaceholder
 }: {
   altText: string
   filePath: string
   payload: Awaited<ReturnType<typeof getPayload>>
   slug: string
+  source: 'amous-icon' | 'generated-image' | 'placeholder'
   usesPlaceholder: boolean
 }): Promise<MediaRecord> {
-  const metadataSource = usesPlaceholder ? `category-placeholder:${slug}` : `category-image:${slug}`
+  const metadataSource =
+    source === 'amous-icon'
+      ? `amous-category-icon:${slug}`
+      : source === 'generated-image'
+        ? `category-image:${slug}`
+        : `category-placeholder:${slug}`
   const existing = await payload.find({
     collection: 'media',
     limit: 1,
@@ -94,7 +124,7 @@ async function upsertCategoryMedia({
     altFr: altText,
     caption: usesPlaceholder ? 'Image de remplacement a remplacer par un visuel original Amous.' : undefined,
     metadata: {
-      dominantColor: '#1D4C80',
+      dominantColor: source === 'amous-icon' ? '#0057C8' : '#1D4C80',
       source: metadataSource
     }
   }
@@ -225,14 +255,60 @@ async function updateHomepageFeaturedCategories(payload: Awaited<ReturnType<type
   }
 
   if (featuredCategoryIds.length > 0) {
-    await payload.updateGlobal({
+    try {
+      await payload.updateGlobal({
+        data: {
+          featuredCategories: featuredCategoryIds
+        },
+        locale: 'fr',
+        overrideAccess: true,
+        slug: 'homepage'
+      })
+    } catch {
+      console.warn('[categories] mise a jour des categories de la page d accueil ignoree: contenu homepage invalide.')
+    }
+  }
+}
+
+async function deactivateObsoleteParentCategories(payload: Awaited<ReturnType<typeof getPayload>>) {
+  const expectedSlugs = new Set(amousCategoryDefinitions.map((definition) => definition.slug))
+  const existingParents = await payload.find({
+    collection: 'categories',
+    limit: 200,
+    locale: 'fr',
+    overrideAccess: true,
+    where: {
+      and: [
+        {
+          active: {
+            equals: true
+          }
+        },
+        {
+          or: [{ parent: { exists: false } }, { parent: { equals: null } }]
+        }
+      ]
+    }
+  })
+
+  for (const category of existingParents.docs) {
+    const slug = (category as { slug?: string }).slug
+
+    if (!slug || expectedSlugs.has(slug)) {
+      continue
+    }
+
+    await payload.update({
+      collection: 'categories',
       data: {
-        featuredCategories: featuredCategoryIds
+        active: false
       },
+      id: category.id,
       locale: 'fr',
-      overrideAccess: true,
-      slug: 'homepage'
+      overrideAccess: true
     })
+
+    console.log(`[categories] ${slug}: deactivated obsolete parent category`)
   }
 }
 
@@ -255,9 +331,13 @@ async function seedCategories() {
     stats.processed += 1
 
     try {
-      const expectedImagePath = path.join(categoryImagesDirectory, definition.imageFileName)
+      const iconFileName = amousCategoryIconFiles[definition.slug]
+      const iconImagePath = iconFileName ? path.join(amousCategoryIconsDirectory, iconFileName) : undefined
+      const generatedImagePath = path.join(categoryImagesDirectory, definition.imageFileName)
+      const expectedImagePath = iconImagePath && existsSync(iconImagePath) ? iconImagePath : generatedImagePath
       const imageExists = existsSync(expectedImagePath)
       const filePath = imageExists ? expectedImagePath : placeholderPath
+      const source = imageExists && iconImagePath && expectedImagePath === iconImagePath ? 'amous-icon' : imageExists ? 'generated-image' : 'placeholder'
 
       if (!imageExists) {
         stats.missingImages += 1
@@ -270,6 +350,7 @@ async function seedCategories() {
         filePath,
         payload,
         slug: definition.slug,
+        source,
         usesPlaceholder: !imageExists
       })
 
@@ -287,6 +368,7 @@ async function seedCategories() {
     }
   }
 
+  await deactivateObsoleteParentCategories(payload)
   await updateHomepageFeaturedCategories(payload)
 
   console.log('\nRapport final categories')

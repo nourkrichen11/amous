@@ -1,12 +1,20 @@
 import type { GlobalConfig } from 'payload'
 
 import { isAdmin } from '@/access/isAdmin'
+import { makeGlobalRevalidationHook } from '@/lib/cache/invalidation'
+import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
+  admin: {
+    group: 'Configuration'
+  },
   access: {
     read: () => true,
     update: isAdmin
+  },
+  hooks: {
+    afterChange: [makeGlobalRevalidationHook([STOREFRONT_TAGS.siteSettings])]
   },
   fields: [
     { name: 'siteName', type: 'text', defaultValue: 'Amous', required: true },

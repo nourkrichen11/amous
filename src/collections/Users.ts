@@ -1,6 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import { isAdmin, isAdminBoolean, isAdminOrSelf } from '@/access/isAdmin'
+import { isAdmin, isAdminBoolean, isAdminField, isAdminOrSameUserField, isAdminOrSelf } from '@/access/isAdmin'
+import { normalizeCountry } from '@/lib/address'
+import { normalizePhone } from '@/lib/phone'
 
 type UserDoc = {
   active?: boolean
@@ -24,6 +26,7 @@ function buildDisplayName(data?: Partial<UserDoc>) {
 export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
+    group: 'Configuration',
     defaultColumns: ['email', 'role', 'firstName', 'lastName', 'active', 'lastLoginAt'],
     useAsTitle: 'email'
   },
@@ -63,8 +66,20 @@ export const Users: CollectionConfig = {
       type: 'text'
     },
     {
+      name: 'normalizedPhone',
+      type: 'text',
+      index: true,
+      admin: {
+        readOnly: true
+      }
+    },
+    {
       name: 'role',
       type: 'select',
+      access: {
+        read: isAdminOrSameUserField,
+        update: isAdminField
+      },
       defaultValue: 'customer',
       options: [
         { label: 'Admin', value: 'admin' },
@@ -122,27 +137,18 @@ export const Users: CollectionConfig = {
         { name: 'phone', type: 'text', required: true },
         { name: 'addressLine1', type: 'text', required: true },
         { name: 'addressLine2', type: 'text' },
+        { name: 'delegation', type: 'text' },
         { name: 'city', type: 'text', required: true },
         { name: 'governorate', type: 'text', required: true },
+        { name: 'locality', type: 'text' },
         { name: 'postalCode', type: 'text' },
-        { name: 'country', type: 'text', defaultValue: 'Tunisia', required: true },
+        { name: 'country', type: 'text', defaultValue: 'TN', required: true },
+        { name: 'deliveryInstructions', type: 'textarea' },
         { name: 'isDefault', type: 'checkbox', defaultValue: false }
       ]
     }
   ],
   hooks: {
-    afterLogin: [
-      async ({ req, user }) => {
-        await req.payload.update({
-          collection: 'users',
-          data: {
-            lastLoginAt: new Date().toISOString()
-          },
-          id: user.id,
-          overrideAccess: true
-        })
-      }
-    ],
     beforeChange: [
       ({ data, originalDoc }) => {
         const nextData = {
@@ -159,6 +165,18 @@ export const Users: CollectionConfig = {
 
         if (typeof nextData.lastName === 'string') {
           nextData.lastName = nextData.lastName.trim()
+        }
+
+        if (typeof nextData.phone === 'string') {
+          nextData.normalizedPhone = normalizePhone(nextData.phone)
+        }
+
+        if (Array.isArray(nextData.addresses)) {
+          nextData.addresses = nextData.addresses.map((address: Record<string, unknown>) => ({
+            ...address,
+            country: normalizeCountry(typeof address.country === 'string' ? address.country : undefined),
+            phone: typeof address.phone === 'string' ? normalizePhone(address.phone) || address.phone : address.phone
+          }))
         }
 
         nextData.name = buildDisplayName({

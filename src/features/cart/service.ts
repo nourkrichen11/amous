@@ -125,6 +125,16 @@ export async function findCartByIdentifier(identifier?: string): Promise<CartDoc
   return (result.docs[0] as CartDoc | undefined) ?? null
 }
 
+export async function getCartCountByIdentifier(identifier?: string): Promise<number> {
+  const cart = await findCartByIdentifier(identifier)
+
+  if (!cart) {
+    return 0
+  }
+
+  return (cart.items ?? []).reduce((sum, item) => sum + (item.quantity ?? 0), 0)
+}
+
 export async function createCart(locale: Locale): Promise<CartDoc> {
   const payload = await getPayloadClient()
   return payload.create({
@@ -424,12 +434,13 @@ export async function findOrder(orderNumber: string, token: string) {
   return result.docs[0] ?? null
 }
 
-export async function markCartConverted(cartId: ID) {
+export async function markCartConverted(cartId: ID, transactionID?: number | string | Promise<number | string>) {
   const payload = await getPayloadClient()
   await payload.update({
     collection: 'carts',
     data: { status: 'converted' },
     id: cartId,
-    overrideAccess: true
+    overrideAccess: true,
+    req: transactionID ? ({ transactionID } as never) : undefined
   })
 }

@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { isValidTunisianPhone, normalizePhone } from '@/lib/phone'
+
 export const quantitySchema = z.coerce.number().int().min(1)
 
 export const checkoutSchema = z.object({
@@ -14,7 +16,7 @@ export const checkoutSchema = z.object({
   idempotencyKey: z.string().min(12, 'idempotencyKey'),
   lastName: z.string().min(2, 'lastName'),
   paymentMethod: z.enum(['cash_on_delivery']),
-  phone: z.string().regex(/^(\+?216)?[24579]\d{7}$/, 'phone'),
+  phone: z.string().refine((value) => isValidTunisianPhone(value), 'phone').transform((value) => normalizePhone(value) || value),
   postalCode: z.string().min(4, 'postalCode'),
   terms: z.literal('on')
 })

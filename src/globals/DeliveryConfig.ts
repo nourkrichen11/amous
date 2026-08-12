@@ -1,12 +1,20 @@
 import type { GlobalConfig } from 'payload'
 
 import { isAdmin } from '@/access/isAdmin'
+import { makeGlobalRevalidationHook } from '@/lib/cache/invalidation'
+import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const DeliveryConfig: GlobalConfig = {
   slug: 'delivery-config',
+  admin: {
+    group: 'Livraison'
+  },
   access: {
     read: () => true,
     update: isAdmin
+  },
+  hooks: {
+    afterChange: [makeGlobalRevalidationHook([STOREFRONT_TAGS.deliveryConfig])]
   },
   fields: [
     { name: 'homeDeliveryEnabled', type: 'checkbox', defaultValue: true, required: true },

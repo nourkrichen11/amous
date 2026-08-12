@@ -4,13 +4,16 @@ export type AddressInput = {
   addressLine1: string
   addressLine2?: string
   city: string
-  country: 'Tunisia'
+  country: 'TN' | 'Tunisia'
+  delegation?: string
+  deliveryInstructions?: string
   firstName: string
   governorate: string
   id?: string
   isDefault: boolean
   label?: string
   lastName: string
+  locality?: string
   phone: string
   postalCode?: string
 }

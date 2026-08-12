@@ -7,11 +7,20 @@ import { fileURLToPath } from 'node:url'
 
 import { Brands } from '@/collections/Brands'
 import { Carts } from '@/collections/Carts'
+import { Carriers } from '@/collections/Carriers'
 import { Categories } from '@/collections/Categories'
+import { CouponCodes } from '@/collections/CouponCodes'
+import { AuditLogs } from '@/collections/AuditLogs'
+import { DeliveryZones } from '@/collections/DeliveryZones'
 import { HeroSlides } from '@/collections/HeroSlides'
 import { Media } from '@/collections/Media'
+import { OrderEvents } from '@/collections/OrderEvents'
 import { Orders } from '@/collections/Orders'
 import { Products } from '@/collections/Products'
+import { Promotions } from '@/collections/Promotions'
+import { Returns } from '@/collections/Returns'
+import { Shipments } from '@/collections/Shipments'
+import { StockMovements } from '@/collections/StockMovements'
 import { Users } from '@/collections/Users'
 import { DeliveryConfig } from '@/globals/DeliveryConfig'
 import { HeaderGlobal } from '@/globals/Header'
@@ -28,13 +37,34 @@ const env = getServerEnv()
 
 export default buildConfig({
   admin: {
+    autoRefresh: true,
+    dateFormat: 'dd/MM/yyyy HH:mm',
+    theme: 'light',
+    toast: {
+      position: 'bottom-right'
+    },
     user: Users.slug,
+    components: {
+      Nav: '@/components/payload/AdminNav#AdminNav',
+      actions: ['@/components/payload/AdminTopbarTools#AdminTopbarTools'],
+      beforeLogin: ['@/components/payload/AdminLoginBrand#AdminLoginBrand'],
+      graphics: {
+        Icon: '@/components/payload/AdminLoginBrand#AdminIcon',
+        Logo: '@/components/payload/AdminLoginBrand#AdminLogo'
+      },
+      views: {
+        dashboard: {
+          Component: '@/components/payload/AdminDashboard#AdminDashboard'
+        }
+      }
+    },
     meta: {
-      titleSuffix: '- Amous CMS'
+      titleSuffix: '- Administration AMOUS'
     }
   },
-  collections: [Users, Media, Categories, Brands, Products, HeroSlides, Carts, Orders],
+  collections: [Users, Media, Categories, Brands, Products, HeroSlides, Carts, Orders, OrderEvents, StockMovements, Returns, Promotions, CouponCodes, DeliveryZones, Carriers, Shipments, AuditLogs],
   db: postgresAdapter({
+    migrationDir: path.resolve(dirname, 'migrations'),
     pool: {
       connectionString: env.DATABASE_URI
     }

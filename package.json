@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
@@ -12,6 +12,7 @@
     "test": "vitest run",
     "seed": "tsx src/scripts/seed.ts",
     "seed:categories": "tsx src/scripts/seedCategories.ts",
+    "generate:category-images": "tsx src/scripts/generateCategoryImages.ts",
     "payload": "payload"
   },
   "dependencies": {

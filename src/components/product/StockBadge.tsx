@@ -10,18 +10,26 @@ type StockBadgeProps = {
 export function StockBadge({ locale, status }: StockBadgeProps) {
   const config = {
     in_stock: {
-      className: 'border-green-200 bg-green-50 text-[var(--color-success)]',
+      className: 'bg-[var(--color-success)]',
+      textClassName: 'text-[var(--color-success)]',
       label: t(locale, 'product.inStock')
     },
     low_stock: {
-      className: 'border-amber-200 bg-amber-50 text-[var(--color-warning)]',
+      className: 'bg-[var(--color-warning)]',
+      textClassName: 'text-[var(--color-warning)]',
       label: t(locale, 'product.lowStock')
     },
     out_of_stock: {
-      className: 'border-red-200 bg-red-50 text-[var(--color-error)]',
+      className: 'bg-slate-400',
+      textClassName: 'text-slate-500',
       label: t(locale, 'product.outOfStock')
     }
   }[status]
 
-  return <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${config.className}`}>{config.label}</span>
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${config.textClassName}`}>
+      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${config.className}`} />
+      {config.label}
+    </span>
+  )
 }

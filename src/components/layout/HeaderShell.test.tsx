@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HeaderData } from '@/features/homepage/types'
 
@@ -30,7 +30,7 @@ const baseHeader: HeaderData = {
   navigationItems: [
     { id: 'home', label: 'Accueil', url: '/fr' },
     { id: 'shop', label: 'Boutique', url: '/fr/boutique' },
-    { id: 'categories', isCategoryTrigger: true, label: 'Catégories', url: '/fr/boutique' }
+    { id: 'categories', isCategoryTrigger: true, label: 'Catégories', url: '/fr/nos-categories' }
   ],
   searchPlaceholder: 'Rechercher un produit, une marque ou une référence...',
   showAccount: true,
@@ -42,18 +42,35 @@ const baseHeader: HeaderData = {
 describe('HeaderShell', () => {
   beforeEach(() => {
     pathnameState.value = '/fr/boutique'
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ cartCount: 2, currentUser: null, wishlistCount: 0 }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200
+        })
+      )
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders the French header with an accessible search field and active nav state', () => {
-    render(<HeaderShell cartCount={2} data={baseHeader} locale="fr" />)
+    const { container } = render(<HeaderShell data={baseHeader} locale="fr" />)
 
     expect(screen.getAllByRole('searchbox', { name: 'Recherche' })).toHaveLength(2)
+    expect(container.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
     expect(screen.getAllByRole('link', { name: 'Boutique' })[0]).toHaveAttribute('aria-current', 'page')
+    expect(screen.getAllByRole('link', { name: 'Accueil' })[0]).not.toHaveAttribute('aria-current')
+    expect(screen.getAllByRole('link', { name: 'Marques' })[0]).not.toHaveAttribute('aria-current')
+    expect(screen.getAllByRole('link', { name: /Catégories/ })[0]).toHaveAttribute('href', '/fr/nos-categories')
     expect(screen.getAllByRole('link', { name: 'Panier' })[0]).toBeInTheDocument()
   })
 
   it('opens and closes the mobile menu, supports Escape, and returns focus to the trigger', () => {
-    render(<HeaderShell cartCount={0} data={baseHeader} locale="fr" />)
+    render(<HeaderShell data={baseHeader} locale="fr" />)
 
     const menuButton = screen.getByRole('button', { name: 'Menu' })
     fireEvent.click(menuButton)
@@ -71,7 +88,6 @@ describe('HeaderShell', () => {
 
     render(
       <HeaderShell
-        cartCount={1}
         data={{
           ...baseHeader,
           navigationItems: [
@@ -93,7 +109,7 @@ describe('HeaderShell', () => {
   it('keeps the header usable in a 320px viewport smoke test', () => {
     render(
       <div style={{ width: 320 }}>
-        <HeaderShell cartCount={3} data={baseHeader} locale="fr" />
+        <HeaderShell data={baseHeader} locale="fr" />
       </div>
     )
 

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 
 import type { Locale } from '@/i18n/config'
 
-import { deleteAddress, saveAddress, changePassword, loginCustomer, registerCustomer, requestPasswordReset, resetPassword, updateProfile } from './service'
+import { deleteAddress, saveAddress, changeOwnPassword, loginCustomer, registerCustomer, requestPasswordReset, resetPassword, updateOwnProfile } from './service'
 import { getCurrentUser, logoutCurrentUser, requireCustomerUser } from './session'
 
 export type AuthFormState = {
@@ -102,12 +102,11 @@ export async function resetPasswordAction(_: AuthFormState, formData: FormData):
 export async function updateProfileAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const locale = asLocale(getValue(formData, 'locale'))
   const user = await requireCustomerUser(locale, `/${locale}/mon-compte/profil`)
-  const result = await updateProfile({
+  const result = await updateOwnProfile(user, {
     email: getValue(formData, 'email'),
     firstName: getValue(formData, 'firstName'),
     lastName: getValue(formData, 'lastName'),
-    phone: getValue(formData, 'phone') || undefined,
-    userId: user.id
+    phone: getValue(formData, 'phone') || undefined
   })
 
   if (!result.ok) {
@@ -129,12 +128,10 @@ export async function updateProfileAction(_: AuthFormState, formData: FormData):
 export async function changePasswordAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const locale = asLocale(getValue(formData, 'locale'))
   const user = await requireCustomerUser(locale, `/${locale}/mon-compte/securite`)
-  const result = await changePassword({
+  const result = await changeOwnPassword(user, {
     confirmNewPassword: getValue(formData, 'confirmNewPassword'),
     currentPassword: getValue(formData, 'currentPassword'),
-    email: user.email,
-    newPassword: getValue(formData, 'newPassword'),
-    userId: user.id
+    newPassword: getValue(formData, 'newPassword')
   })
 
   if (!result.ok) {
@@ -157,7 +154,7 @@ export async function saveAddressAction(_: AuthFormState, formData: FormData): P
     addressLine1: getValue(formData, 'addressLine1'),
     addressLine2: getValue(formData, 'addressLine2') || undefined,
     city: getValue(formData, 'city'),
-    country: 'Tunisia',
+    country: 'TN',
     firstName: getValue(formData, 'firstName'),
     governorate: getValue(formData, 'governorate'),
     id: getValue(formData, 'addressId') || undefined,

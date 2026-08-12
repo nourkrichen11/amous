@@ -6,20 +6,34 @@ type RoleUser = {
   role?: 'admin' | 'customer'
 }
 
+export function isAdminRole(user?: RoleUser | null) {
+  return user?.role === 'admin'
+}
+
+function sameID(left?: number | string, right?: number | string) {
+  return left != null && right != null && String(left) === String(right)
+}
+
 export const isAdmin: Access = ({ req }) => {
-  return (req.user as RoleUser | null)?.role === 'admin'
+  return isAdminRole(req.user as RoleUser | null)
 }
 
 export const isAdminBoolean = ({ req }: { req: PayloadRequest }) => {
-  return (req.user as RoleUser | null)?.role === 'admin'
+  return isAdminRole(req.user as RoleUser | null)
 }
 
 export const isAdminField: FieldAccess = ({ req }) => {
-  return (req.user as RoleUser | null)?.role === 'admin'
+  return isAdminRole(req.user as RoleUser | null)
+}
+
+export const isAdminOrSameUserField: FieldAccess = ({ id, req }) => {
+  const user = req.user as RoleUser | null
+
+  return isAdminRole(user) || sameID(user?.id, id as number | string | undefined)
 }
 
 export const activeOnly: Access = ({ req }) => {
-  if ((req.user as RoleUser | null)?.role === 'admin') {
+  if (isAdminRole(req.user as RoleUser | null)) {
     return true
   }
 
@@ -37,7 +51,7 @@ export const isAdminOrSelf: Access = ({ req }) => {
     return false
   }
 
-  if (user.role === 'admin') {
+  if (isAdminRole(user)) {
     return true
   }
 
@@ -55,7 +69,7 @@ export const isAdminOrOwnOrder: Access = ({ req }) => {
     return false
   }
 
-  if (user.role === 'admin') {
+  if (isAdminRole(user)) {
     return true
   }
 

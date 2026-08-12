@@ -1,12 +1,20 @@
 import type { GlobalConfig } from 'payload'
 
 import { isAdmin } from '@/access/isAdmin'
+import { makeGlobalRevalidationHook } from '@/lib/cache/invalidation'
+import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const Homepage: GlobalConfig = {
   slug: 'homepage',
+  admin: {
+    group: 'Contenu'
+  },
   access: {
     read: () => true,
     update: isAdmin
+  },
+  hooks: {
+    afterChange: [makeGlobalRevalidationHook([STOREFRONT_TAGS.homepage])]
   },
   fields: [
     { name: 'announcementText', type: 'text', localized: true },

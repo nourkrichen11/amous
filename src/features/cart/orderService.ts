@@ -4,6 +4,9 @@ import type { Locale } from '@/i18n/config'
 import type { AuthUser } from '@/features/auth/types'
 import { calculateDeliveryFee, getDeliveryConfig } from '@/features/cart/delivery'
 import type { CheckoutInput } from '@/features/cart/validation'
+import { reserveInventory } from '@/features/inventory/service'
+import { createOrderEvent } from '@/features/orders/events'
+import { makeCommercialOrderNumber } from '@/features/orders/orderNumbers'
 import { calculateTotals } from '@/lib/money'
 import { getPayloadClient } from '@/lib/payload/getPayload'
 
@@ -20,12 +23,6 @@ type OrderResult =
       formError: string
       ok: false
     }
-
-function makeOrderNumber() {
-  const date = new Date()
-  const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`
-  return `AM-${stamp}-${randomBytes(3).toString('hex').toUpperCase()}`
-}
 
 function makeToken() {
   return randomBytes(24).toString('hex')
@@ -91,32 +88,16 @@ export async function createCashOnDeliveryOrder(
   }
 
   const totals = calculateTotals(validatedCart.items, delivery.cost)
-  const orderNumber = makeOrderNumber()
+  const orderNumber = await makeCommercialOrderNumber(payload)
   const token = makeToken()
   const now = new Date().toISOString()
 
-  for (const item of validatedCart.items) {
-    const product = await payload.findByID({
-      collection: 'products',
-      id: item.productId,
-      overrideAccess: true
-    }) as { stockQuantity?: number }
-    const nextStock = Math.max(0, (product.stockQuantity ?? 0) - item.quantity)
+  const transactionID = await payload.db.beginTransaction()
 
-    await payload.update({
-      collection: 'products',
+  try {
+    const order = await payload.create({
+      collection: 'orders',
       data: {
-        stockQuantity: nextStock,
-        stockStatus: nextStock <= 0 ? 'out_of_stock' : nextStock <= 10 ? 'low_stock' : 'in_stock'
-      },
-      id: item.productId,
-      overrideAccess: true
-    })
-  }
-
-  await payload.create({
-    collection: 'orders',
-    data: {
       billingAddress: {
         city: input.city,
         governorate: input.governorate,
@@ -140,6 +121,7 @@ export async function createCashOnDeliveryOrder(
       },
       deliveryCost: delivery.cost,
       deliveryMethod: input.deliveryMethod,
+      fulfillmentStatus: 'unfulfilled',
       idempotencyKey: input.idempotencyKey,
       items: validatedCart.items.map((item) => ({
         lineSubtotal: item.lineSubtotal,
@@ -154,9 +136,12 @@ export async function createCashOnDeliveryOrder(
         vatRate: item.vatRate
       })),
       locale,
+      amountToCollect: totals.total,
+      confirmationStatus: 'pending',
+      orderStatus: 'new',
       orderNumber,
       paymentMethod: 'cash_on_delivery',
-      paymentStatus: 'cash_on_delivery',
+      paymentStatus: 'unpaid',
       status: 'received',
       statusTimestamps: {
         receivedAt: now
@@ -165,10 +150,48 @@ export async function createCashOnDeliveryOrder(
       total: totals.total,
       vatTotal: totals.vatTotal
     },
-    overrideAccess: true
-  })
+      overrideAccess: true,
+      req: transactionID ? ({ transactionID } as never) : undefined
+    })
 
-  await markCartConverted(cart.id)
+    await reserveInventory(
+      payload,
+      validatedCart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+      {
+        orderId: order.id,
+        reason: `Reservation commande ${orderNumber}`,
+        transactionID: transactionID ?? undefined
+      }
+    )
+
+    await createOrderEvent(payload, {
+      eventType: 'order_created',
+      newState: {
+        confirmationStatus: 'pending',
+        fulfillmentStatus: 'unfulfilled',
+        orderStatus: 'new',
+        paymentStatus: 'unpaid'
+      },
+      orderId: order.id,
+      transactionID: transactionID ?? undefined
+    })
+
+    await markCartConverted(cart.id, transactionID ?? undefined)
+
+    if (transactionID) {
+      await payload.db.commitTransaction(transactionID)
+    }
+  } catch (error) {
+    if (transactionID) {
+      await payload.db.rollbackTransaction(transactionID)
+    }
+
+    if (error instanceof Error && error.message === 'INSUFFICIENT_STOCK') {
+      return { formError: 'cart_invalid', ok: false }
+    }
+
+    throw error
+  }
 
   return { ok: true, orderNumber, token }
 }

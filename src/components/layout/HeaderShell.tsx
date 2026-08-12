@@ -6,52 +6,80 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import type { CartView } from '@/features/cart/types'
 import type { AuthUserSummary } from '@/features/auth/types'
 import type { HeaderData, HeaderNavItem } from '@/features/homepage/types'
 import type { Locale } from '@/i18n/config'
 import { t } from '@/i18n/config'
 
 type HeaderShellProps = {
-  cartCount: CartView['count']
-  currentUser?: AuthUserSummary | null
   data: HeaderData
   locale: Locale
+}
+
+type HeaderStateResponse = {
+  cartCount: number
+  currentUser: AuthUserSummary | null
+  wishlistCount: number
 }
 
 const frenchCaptureNavigation: HeaderNavItem[] = [
   { id: 'home', label: 'Accueil', url: '/fr' },
   { id: 'shop', label: 'Boutique', url: '/fr/boutique' },
-  { id: 'categories', label: 'Categories', url: '/fr/boutique' },
-  { id: 'brands', label: 'Marques', url: '/fr/boutique' },
-  { id: 'offers', label: 'Offres', url: '/fr/boutique?promotion=1' },
-  { id: 'blog', label: 'Blog', url: '/fr/recherche?q=blog' },
-  { id: 'about', label: '\u00c0 propos', url: '/fr/recherche?q=amous' },
-  { id: 'contact', label: 'Contact', url: '/fr/recherche?q=contact' }
+  { id: 'categories', isCategoryTrigger: true, label: 'Catégories', url: '/fr/nos-categories' },
+  { id: 'brands', label: 'Marques', url: '/fr/marques' },
+  { id: 'offers', label: 'Offres', url: '/fr/offres' },
+  { id: 'blog', label: 'Blog', url: '/fr/blog' },
+  { id: 'about', label: '\u00c0 propos', url: '/fr/a-propos' },
+  { id: 'contact', label: 'Contact', url: '/fr/contact' }
 ]
 
-function getIsActive(pathname: string, href: string) {
-  if (href === pathname) {
-    return true
+const activeRouteAliases: Record<string, string[]> = {
+  about: ['/a-propos'],
+  blog: ['/blog'],
+  brands: ['/marques'],
+  categories: ['/categories', '/nos-categories', '/c'],
+  contact: ['/contact'],
+  home: ['/'],
+  offers: ['/offres'],
+  shop: ['/boutique']
+}
+
+function normalizeNavPath(value: string) {
+  const pathOnly = value.split(/[?#]/)[0] || '/'
+  const withoutTrailingSlash = pathOnly.length > 1 ? pathOnly.replace(/\/+$/, '') : pathOnly
+
+  return withoutTrailingSlash.replace(/^\/(fr|en|ar)(?=\/|$)/, '') || '/'
+}
+
+function getActivePaths(item: HeaderNavItem) {
+  const configuredPaths = item.url.includes('?') || item.url.includes('#') ? [] : [normalizeNavPath(item.url)]
+
+  return [...new Set([...configuredPaths, ...(activeRouteAliases[item.id] ?? [])])]
+}
+
+function getActiveNavItemId(pathname: string, items: HeaderNavItem[]) {
+  const normalizedPath = normalizeNavPath(pathname)
+  const exactMatch = items.find((item) => getActivePaths(item).includes(normalizedPath))
+
+  if (exactMatch) {
+    return exactMatch.id
   }
 
-  if (href.endsWith('/') && href.length > 1) {
-    return pathname === href.slice(0, -1)
-  }
-
-  return href !== '/' && pathname.startsWith(`${href}/`)
+  return items.find((item) =>
+    getActivePaths(item).some((href) => href !== '/' && normalizedPath.startsWith(`${href}/`))
+  )?.id
 }
 
 function HeaderLogo({ locale, logoUrl, siteLabel }: { locale: Locale; logoUrl?: string; siteLabel: string }) {
   return (
     <Link
       aria-label={siteLabel}
-      className="inline-flex min-h-[56px] items-center gap-3 rounded-sm text-[var(--color-text)]"
+      className="inline-flex min-h-[52px] items-center rounded-sm text-[var(--color-text)]"
       href={`/${locale}`}
     >
       {logoUrl ? (
-        <span className="relative block h-[58px] w-[122px] shrink-0 overflow-hidden rounded-md border border-[#d5dae3] bg-[#0d1730] px-3 shadow-[0_4px_14px_rgb(15_23_42/0.12)]">
-          <Image alt={siteLabel} className="object-contain object-center p-1" fill sizes="122px" src={logoUrl} unoptimized />
+        <span className="relative block h-[52px] w-[112px] shrink-0 overflow-hidden rounded-lg bg-[var(--color-secondary)] p-3">
+          <Image alt={siteLabel} className="object-contain object-center" fill sizes="112px" src={logoUrl} unoptimized />
         </span>
       ) : (
         <span className="text-2xl font-black tracking-normal text-[var(--color-primary)]">Amous</span>
@@ -105,10 +133,12 @@ function HeaderIconButton({
   )
 }
 
-export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShellProps) {
+export function HeaderShell({ data, locale }: HeaderShellProps) {
   const pathname = usePathname() || `/${locale}`
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [compact, setCompact] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
+  const [currentUser, setCurrentUser] = useState<AuthUserSummary | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const wasDrawerOpen = useRef(false)
@@ -120,8 +150,47 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
     () => (locale === 'fr' ? frenchCaptureNavigation : data.navigationItems.slice(0, 9)),
     [data.navigationItems, locale]
   )
+  const activeNavId = useMemo(() => getActiveNavItemId(pathname, desktopNav), [desktopNav, pathname])
   const accountHref = currentUser ? `/${locale}/mon-compte` : `/${locale}/connexion`
   const accountText = currentUser ? 'Mon compte' : locale === 'fr' ? 'Se connecter' : t(locale, 'navigation.account')
+
+  useEffect(() => {
+    if (typeof fetch !== 'function') {
+      return
+    }
+
+    const controller = new AbortController()
+
+    const loadHeaderState = async () => {
+      try {
+        const response = await fetch('/api/storefront/header-state', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const payload = (await response.json()) as Partial<HeaderStateResponse>
+
+        if (typeof payload.cartCount === 'number') {
+          setCartCount(payload.cartCount)
+        }
+
+        setCurrentUser(payload.currentUser ?? null)
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Unable to load header state', error)
+        }
+      }
+    }
+
+    void loadHeaderState()
+
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     if (!data.stickyHeaderEnabled) {
@@ -172,10 +241,10 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
       <div
         className={[
           'container-wide transition-[padding] duration-200',
-          compact ? 'py-2 md:py-2' : 'py-3 md:py-2'
+          compact ? 'py-2 md:py-0' : 'py-3 md:py-0'
         ].join(' ')}
       >
-        <div className="grid items-center gap-3 md:grid-cols-[auto_minmax(16rem,1fr)_auto] md:gap-8">
+        <div className="grid items-center gap-3 md:min-h-[76px] md:grid-cols-[auto_minmax(16rem,1fr)_auto] md:gap-7">
           <div className="flex min-w-0 items-center justify-between gap-3 md:justify-start">
             <button
               aria-expanded={drawerOpen}
@@ -201,10 +270,10 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
             <label className="sr-only" htmlFor="header-search-desktop">
               {t(locale, 'navigation.search')}
             </label>
-            <div className="mx-auto flex min-h-[54px] w-full max-w-[960px] items-center rounded-xl border border-[#d9dee7] bg-white px-5 shadow-[0_1px_0_rgb(15_23_42/0.03)]">
-              <Search aria-hidden="true" className="me-4 shrink-0 text-[#98a2b3]" size={24} strokeWidth={2} />
+            <div className="mx-auto flex min-h-[46px] w-full max-w-[880px] items-center rounded-lg border border-[#d9dee7] bg-white px-4 shadow-[0_1px_0_rgb(15_23_42/0.03)]">
+              <Search aria-hidden="true" className="me-3 shrink-0 text-[#98a2b3]" size={20} strokeWidth={2} />
               <input
-                className="w-full bg-transparent text-xl text-[var(--color-text)] outline-none placeholder:text-[#667085] [unicode-bidi:plaintext]"
+                className="w-full bg-transparent text-base text-[var(--color-text)] outline-none placeholder:text-[#667085] [unicode-bidi:plaintext]"
                 dir="auto"
                 id="header-search-desktop"
                 name="q"
@@ -218,7 +287,7 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
             </div>
           </form>
 
-          <div className="hidden items-center justify-end gap-5 md:flex">
+          <div className="hidden items-center justify-end gap-4 md:flex">
             {data.showAccount ? (
               <HeaderIconButton href={accountHref} label={t(locale, 'navigation.account')} text={accountText}>
                 <UserRound aria-hidden="true" size={25} strokeWidth={2} />
@@ -257,13 +326,13 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
         <nav
           aria-label={t(locale, 'navigation.primary')}
           className={[
-            'mt-2 hidden border-t border-[var(--color-border)] md:block',
-            compact ? 'pt-1' : 'pt-2'
+            'hidden border-t border-[var(--color-border)] md:block',
+            compact ? 'pt-0' : 'pt-0'
           ].join(' ')}
         >
           <ul className="flex flex-wrap items-center gap-x-0 gap-y-1">
             {desktopNav.map((item) => {
-              const active = getIsActive(pathname, item.url)
+              const active = item.id === activeNavId
 
               return (
                 <li key={item.id}>
@@ -271,10 +340,10 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
                     aria-current={active ? 'page' : undefined}
                     aria-haspopup={item.isCategoryTrigger ? 'menu' : undefined}
                     className={[
-                      'relative inline-flex min-h-[52px] items-center gap-1.5 px-5 text-[17px] font-medium transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-[var(--color-primary)] after:transition-transform',
+                      'relative inline-flex min-h-[54px] items-center gap-1.5 px-4 text-[15px] font-medium transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-[var(--color-primary)] after:transition-transform lg:px-5 lg:text-base',
                       active
                         ? 'text-[var(--color-primary)] after:scale-x-100'
-                        : 'text-[var(--color-text)] hover:text-[var(--color-primary)] hover:after:scale-x-100'
+                        : 'text-[var(--color-text)] hover:text-[var(--color-primary)]'
                     ].join(' ')}
                     data-mega-menu-trigger={item.isCategoryTrigger ? 'true' : undefined}
                     href={item.url}
@@ -328,7 +397,7 @@ export function HeaderShell({ cartCount, currentUser, data, locale }: HeaderShel
                   </li>
                 ) : null}
                 {desktopNav.map((item) => {
-                  const active = getIsActive(pathname, item.url)
+                  const active = item.id === activeNavId
 
                   return (
                     <li key={item.id}>

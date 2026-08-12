@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import type { Where } from 'payload'
 
 import type { Locale } from '@/i18n/config'
+import { STOREFRONT_REVALIDATE, STOREFRONT_TAGS, cacheByLocale, cacheBySlug, cacheWithKey } from '@/lib/cache/storefront'
 import { getPayloadClient } from '@/lib/payload/getPayload'
 
 import type {
@@ -35,6 +36,7 @@ type CategoryDoc = {
   description?: string
   longDescription?: unknown
   image?: Relation<MediaDoc>
+  icon?: string
   displayOrder?: number
   featured?: boolean
   showOnHomepage?: boolean
@@ -58,6 +60,8 @@ type ProductDoc = {
   name?: string
   slug?: string
   sku?: string
+  manufacturerReference?: string
+  barcode?: string
   shortDescription?: string
   fullDescription?: string
   category?: Relation<CategoryDoc>
@@ -67,6 +71,8 @@ type ProductDoc = {
   previousPrice?: number
   vatRate?: number
   stockQuantity?: number
+  reservedStock?: number
+  lowStockThreshold?: number
   stockStatus?: ProductItem['stockStatus']
   unit?: ProductItem['unit']
   minimumOrderQuantity?: number
@@ -175,6 +181,7 @@ function mapCategory(category: Relation<CategoryDoc>, locale: Locale): CategoryI
     displayOrder: doc.displayOrder,
     featured: doc.featured,
     id: doc.id,
+    icon: doc.icon,
     image: mapMedia(doc.image, locale),
     longDescription: doc.longDescription,
     name: doc.name,
@@ -219,6 +226,8 @@ function mapProduct(product: ProductDoc, locale: Locale): ProductItem | undefine
     fullDescription: product.fullDescription,
     id: product.id,
     images: product.images?.map((image) => mapMedia(image, locale)).filter((image): image is MediaItem => Boolean(image)) ?? [],
+    barcode: product.barcode,
+    manufacturerReference: product.manufacturerReference,
     minimumOrderQuantity: product.minimumOrderQuantity ?? 1,
     name: product.name,
     newProduct: product.newProduct,
@@ -231,6 +240,8 @@ function mapProduct(product: ProductDoc, locale: Locale): ProductItem | undefine
     shortDescription: product.shortDescription,
     sku: product.sku,
     slug: product.slug,
+    lowStockThreshold: product.lowStockThreshold,
+    reservedStock: product.reservedStock,
     stockQuantity: product.stockQuantity ?? 0,
     stockStatus: product.stockStatus ?? 'out_of_stock',
     technicalAttributes:
@@ -315,193 +326,240 @@ async function getHomepageProductCollection({
 }
 
 export async function getSiteSettings(locale: Locale): Promise<SiteSettingsData> {
-  noStore()
+  return cacheByLocale(
+    'site-settings',
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const settings = (await payload.findGlobal({
+          slug: 'site-settings',
+          locale
+        })) as SiteSettingsGlobalDoc
 
-  try {
-    const payload = await getPayloadClient()
-    const settings = (await payload.findGlobal({
-      slug: 'site-settings',
-      locale
-    })) as SiteSettingsGlobalDoc
-
-    return {
-      address: settings.address,
-      copyrightText: settings.footer?.copyrightText,
-      defaultSeoDescription: settings.defaultSeo?.description,
-      defaultSeoTitle: settings.defaultSeo?.title,
-      email: settings.email,
-      phone: settings.phone,
-      searchPlaceholder: settings.header?.searchPlaceholder,
-      siteName: settings.siteName || 'Amous',
-      whatsappNumber: settings.whatsappNumber
+        return {
+          address: settings.address,
+          copyrightText: settings.footer?.copyrightText,
+          defaultSeoDescription: settings.defaultSeo?.description,
+          defaultSeoTitle: settings.defaultSeo?.title,
+          email: settings.email,
+          phone: settings.phone,
+          searchPlaceholder: settings.header?.searchPlaceholder,
+          siteName: settings.siteName || 'Amous',
+          whatsappNumber: settings.whatsappNumber
+        }
+      } catch {
+        return {
+          siteName: 'Amous'
+        }
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.siteSettings,
+      tags: [STOREFRONT_TAGS.siteSettings]
     }
-  } catch {
-    return {
-      siteName: 'Amous'
-    }
-  }
+  )
 }
 
 export async function getHomepage(locale: Locale): Promise<HomepageData | null> {
-  noStore()
+  return cacheByLocale(
+    'homepage-global',
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const homepage = (await payload.findGlobal({
+          depth: 2,
+          slug: 'homepage',
+          locale
+        })) as HomepageGlobalDoc
 
-  try {
-    const payload = await getPayloadClient()
-    const homepage = (await payload.findGlobal({
-      depth: 2,
-      slug: 'homepage',
-      locale
-    })) as HomepageGlobalDoc
+        if (!homepage.heroTitle) {
+          return null
+        }
 
-    if (!homepage.heroTitle) {
-      return null
+        return {
+          announcementText: homepage.announcementText,
+          benefits:
+            homepage.benefits
+              ?.filter((benefit) => benefit.title)
+              .map((benefit) => ({ description: benefit.description, title: benefit.title ?? '' })) ?? [],
+          featuredBrands:
+            homepage.featuredBrands
+              ?.map((brand) => mapBrand(brand, locale))
+              .filter((brand): brand is BrandItem => Boolean(brand)) ?? [],
+          featuredCategories:
+            homepage.featuredCategories
+              ?.map((category) => mapCategory(category, locale))
+              .filter((category): category is CategoryItem => Boolean(category)) ?? [],
+          featuredProducts:
+            homepage.featuredProducts
+              ?.map((product) => resolveRelation(product))
+              .map((product) => (product ? mapProduct(product, locale) : undefined))
+              .filter((product): product is ProductItem => Boolean(product))
+              .slice(0, 12) ?? [],
+          heroCtaLabel: homepage.heroCtaLabel,
+          heroCtaUrl: homepage.heroCtaUrl,
+          heroSubtitle: homepage.heroSubtitle,
+          heroTitle: homepage.heroTitle
+        }
+      } catch {
+        return null
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.homepage,
+      tags: [STOREFRONT_TAGS.homepage]
     }
-
-    return {
-      announcementText: homepage.announcementText,
-      benefits:
-        homepage.benefits
-          ?.filter((benefit) => benefit.title)
-          .map((benefit) => ({ description: benefit.description, title: benefit.title ?? '' })) ?? [],
-      featuredBrands:
-        homepage.featuredBrands
-          ?.map((brand) => mapBrand(brand, locale))
-          .filter((brand): brand is BrandItem => Boolean(brand)) ?? [],
-      featuredCategories:
-        homepage.featuredCategories
-          ?.map((category) => mapCategory(category, locale))
-          .filter((category): category is CategoryItem => Boolean(category)) ?? [],
-      featuredProducts:
-        homepage.featuredProducts
-          ?.map((product) => resolveRelation(product))
-          .map((product) => (product ? mapProduct(product, locale) : undefined))
-          .filter((product): product is ProductItem => Boolean(product))
-          .slice(0, 12) ?? [],
-      heroCtaLabel: homepage.heroCtaLabel,
-      heroCtaUrl: homepage.heroCtaUrl,
-      heroSubtitle: homepage.heroSubtitle,
-      heroTitle: homepage.heroTitle
-    }
-  } catch {
-    return null
-  }
+  )
 }
 
 export async function getCategories(locale: Locale, parentId?: ID): Promise<CategoryItem[]> {
-  noStore()
+  return cacheWithKey(
+    ['categories', locale, parentId ? String(parentId) : 'root'],
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const where: Where = parentId
+          ? { parent: { equals: parentId } }
+          : {
+              or: [{ parent: { exists: false } }, { parent: { equals: null } }]
+            }
 
-  try {
-    const payload = await getPayloadClient()
-    const where: Where = parentId
-      ? { parent: { equals: parentId } }
-      : {
-          or: [{ parent: { exists: false } }, { parent: { equals: null } }]
-        }
+        const result = await payload.find({
+          collection: 'categories',
+          depth: 1,
+          limit: 100,
+          locale,
+          sort: 'displayOrder',
+          where
+        })
 
-    const result = await payload.find({
-      collection: 'categories',
-      depth: 1,
-      limit: 100,
-      locale,
-      sort: 'displayOrder',
-      where
-    })
-
-    return (result.docs as CategoryDoc[])
-      .map((category) => mapCategory(category, locale))
-      .filter((category): category is CategoryItem => Boolean(category))
-  } catch {
-    return []
-  }
+        return (result.docs as CategoryDoc[])
+          .map((category) => mapCategory(category, locale))
+          .filter((category): category is CategoryItem => Boolean(category))
+      } catch {
+        return []
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.categories,
+      tags: [STOREFRONT_TAGS.categories]
+    }
+  )
 }
 
 export async function getHomepageCategories(locale: Locale): Promise<CategoryItem[]> {
-  noStore()
-
-  try {
-    const payload = await getPayloadClient()
-    const result = await payload.find({
-      collection: 'categories',
-      depth: 1,
-      limit: 8,
-      locale,
-      sort: 'displayOrder',
-      where: {
-        and: [
-          {
-            showOnHomepage: {
-              equals: true
-            }
-          },
-          {
-            or: [{ parent: { exists: false } }, { parent: { equals: null } }]
+  return cacheByLocale(
+    'homepage-categories',
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'categories',
+          depth: 1,
+          limit: 8,
+          locale,
+          sort: 'displayOrder',
+          where: {
+            and: [
+              {
+                showOnHomepage: {
+                  equals: true
+                }
+              },
+              {
+                or: [{ parent: { exists: false } }, { parent: { equals: null } }]
+              }
+            ]
           }
-        ]
+        })
+
+        const categories = (result.docs as CategoryDoc[])
+          .map((category) => mapCategory(category, locale))
+          .filter((category): category is CategoryItem => Boolean(category))
+
+        return withProductCounts(locale, categories)
+      } catch {
+        return []
       }
-    })
-
-    const categories = (result.docs as CategoryDoc[])
-      .map((category) => mapCategory(category, locale))
-      .filter((category): category is CategoryItem => Boolean(category))
-
-    return withProductCounts(locale, categories)
-  } catch {
-    return []
-  }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.homepage,
+      tags: [STOREFRONT_TAGS.categories, STOREFRONT_TAGS.homepage]
+    }
+  )
 }
 
 export async function getAllParentCategories(locale: Locale): Promise<CategoryItem[]> {
-  noStore()
+  return cacheByLocale(
+    'all-parent-categories',
+    locale,
+    async () => {
+      try {
+        const [parents, allChildren] = await Promise.all([getCategories(locale), getCategoriesWithParents(locale)])
+        const childGroups = new Map<ID, Array<{ id: ID; name: string; slug: string }>>()
 
-  try {
-    const [parents, allChildren] = await Promise.all([getCategories(locale), getCategoriesWithParents(locale)])
-    const childGroups = new Map<ID, Array<{ id: ID; name: string; slug: string }>>()
+        allChildren.forEach((category) => {
+          if (!category.parent) {
+            return
+          }
 
-    allChildren.forEach((category) => {
-      if (!category.parent) {
-        return
+          const group = childGroups.get(category.parent.id) ?? []
+          group.push({ id: category.id, name: category.name, slug: category.slug })
+          childGroups.set(category.parent.id, group)
+        })
+
+        const withCounts = await withProductCounts(locale, parents)
+
+        return withCounts.map((category) => ({
+          ...category,
+          children: childGroups.get(category.id) ?? []
+        }))
+      } catch {
+        return []
       }
-
-      const group = childGroups.get(category.parent.id) ?? []
-      group.push({ id: category.id, name: category.name, slug: category.slug })
-      childGroups.set(category.parent.id, group)
-    })
-
-    const withCounts = await withProductCounts(locale, parents)
-
-    return withCounts.map((category) => ({
-      ...category,
-      children: childGroups.get(category.id) ?? []
-    }))
-  } catch {
-    return []
-  }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.categories,
+      tags: [STOREFRONT_TAGS.categories]
+    }
+  )
 }
 
 export async function getCategoryOverview(locale: Locale): Promise<CategoryItem[]> {
-  noStore()
+  return cacheByLocale(
+    'category-overview',
+    locale,
+    async () => {
+      try {
+        const [parents, allChildren] = await Promise.all([getActiveParentCategories(locale), getActiveCategoriesWithParents(locale)])
+        const childGroups = new Map<ID, Array<{ id: ID; name: string; slug: string }>>()
 
-  try {
-    const [parents, allChildren] = await Promise.all([getActiveParentCategories(locale), getActiveCategoriesWithParents(locale)])
-    const childGroups = new Map<ID, Array<{ id: ID; name: string; slug: string }>>()
+        allChildren.forEach((category) => {
+          if (!category.parent) {
+            return
+          }
 
-    allChildren.forEach((category) => {
-      if (!category.parent) {
-        return
+          const group = childGroups.get(category.parent.id) ?? []
+          group.push({ id: category.id, name: category.name, slug: category.slug })
+          childGroups.set(category.parent.id, group)
+        })
+
+        return parents.map((category) => ({
+          ...category,
+          children: (childGroups.get(category.id) ?? []).slice(0, 3)
+        }))
+      } catch {
+        return []
       }
-
-      const group = childGroups.get(category.parent.id) ?? []
-      group.push({ id: category.id, name: category.name, slug: category.slug })
-      childGroups.set(category.parent.id, group)
-    })
-
-    return parents.map((category) => ({
-      ...category,
-      children: (childGroups.get(category.id) ?? []).slice(0, 3)
-    }))
-  } catch {
-    return []
-  }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.categories,
+      tags: [STOREFRONT_TAGS.categories]
+    }
+  )
 }
 
 async function getActiveParentCategories(locale: Locale): Promise<CategoryItem[]> {
@@ -578,131 +636,171 @@ async function getCategoriesWithParents(locale: Locale): Promise<CategoryItem[]>
 }
 
 export async function getFeaturedBrands(locale: Locale): Promise<BrandItem[]> {
-  noStore()
+  return cacheByLocale(
+    'featured-brands',
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'brands',
+          depth: 1,
+          limit: 12,
+          locale,
+          sort: 'name',
+          where: {
+            featured: {
+              equals: true
+            }
+          }
+        })
 
-  try {
-    const payload = await getPayloadClient()
-    const result = await payload.find({
-      collection: 'brands',
-      depth: 1,
-      limit: 12,
-      locale,
-      sort: 'name',
-      where: {
-        featured: {
-          equals: true
-        }
+        return (result.docs as BrandDoc[])
+          .map((brand) => mapBrand(brand, locale))
+          .filter((brand): brand is BrandItem => Boolean(brand))
+      } catch {
+        return []
       }
-    })
-
-    return (result.docs as BrandDoc[])
-      .map((brand) => mapBrand(brand, locale))
-      .filter((brand): brand is BrandItem => Boolean(brand))
-  } catch {
-    return []
-  }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.brands,
+      tags: [STOREFRONT_TAGS.brands, STOREFRONT_TAGS.homepage]
+    }
+  )
 }
 
 export async function getBrands(locale: Locale): Promise<BrandItem[]> {
-  noStore()
+  return cacheByLocale(
+    'brands',
+    locale,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'brands',
+          depth: 1,
+          limit: 100,
+          locale,
+          sort: 'name'
+        })
 
-  try {
-    const payload = await getPayloadClient()
-    const result = await payload.find({
-      collection: 'brands',
-      depth: 1,
-      limit: 100,
-      locale,
-      sort: 'name'
-    })
-
-    return (result.docs as BrandDoc[])
-      .map((brand) => mapBrand(brand, locale))
-      .filter((brand): brand is BrandItem => Boolean(brand))
-  } catch {
-    return []
-  }
+        return (result.docs as BrandDoc[])
+          .map((brand) => mapBrand(brand, locale))
+          .filter((brand): brand is BrandItem => Boolean(brand))
+      } catch {
+        return []
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.brands,
+      tags: [STOREFRONT_TAGS.brands]
+    }
+  )
 }
 
 export async function getCategoryBySlug(locale: Locale, slug: string): Promise<CategoryItem | null> {
-  noStore()
+  return cacheBySlug(
+    'category-by-slug',
+    locale,
+    slug,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'categories',
+          depth: 1,
+          limit: 1,
+          locale,
+          where: {
+            slug: {
+              equals: slug
+            }
+          }
+        })
 
-  try {
-    const payload = await getPayloadClient()
-    const result = await payload.find({
-      collection: 'categories',
-      depth: 1,
-      limit: 1,
-      locale,
-      where: {
-        slug: {
-          equals: slug
-        }
+        return mapCategory(result.docs[0] as CategoryDoc | undefined, locale) ?? null
+      } catch {
+        return null
       }
-    })
-
-    return mapCategory(result.docs[0] as CategoryDoc | undefined, locale) ?? null
-  } catch {
-    return null
-  }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.categories,
+      tags: [STOREFRONT_TAGS.categories, `category:${slug}`]
+    }
+  )
 }
 
 export async function getRelatedCategories(locale: Locale, category: CategoryItem, limit = 4): Promise<CategoryItem[]> {
-  noStore()
-
-  try {
-    const pool = category.parent ? await getCategories(locale, category.parent.id) : await getCategories(locale)
-    return pool.filter((entry) => String(entry.id) !== String(category.id)).slice(0, limit)
-  } catch {
-    return []
-  }
+  return cacheWithKey(
+    ['related-categories', locale, String(category.id), String(limit)],
+    async () => {
+      try {
+        const pool = category.parent ? await getCategories(locale, category.parent.id) : await getCategories(locale)
+        return pool.filter((entry) => String(entry.id) !== String(category.id)).slice(0, limit)
+      } catch {
+        return []
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.categories,
+      tags: [STOREFRONT_TAGS.categories, `category:${category.slug}`]
+    }
+  )
 }
 
 export async function getHomepageSections(locale: Locale): Promise<HomepageSectionsData> {
-  noStore()
+  return cacheByLocale(
+    'homepage-sections',
+    locale,
+    async () => {
+      const homepage = await getHomepage(locale)
+      const bestSellingFromHomepage = homepage?.featuredProducts.slice(0, 8) ?? []
+      const partnerBrandsFromHomepage = homepage?.featuredBrands.slice(0, 12) ?? []
 
-  const homepage = await getHomepage(locale)
-  const bestSellingFromHomepage = homepage?.featuredProducts.slice(0, 8) ?? []
-  const partnerBrandsFromHomepage = homepage?.featuredBrands.slice(0, 12) ?? []
-
-  const [mainCategories, fallbackBestSellingProducts, currentPromotions, fallbackPartnerBrands, newProducts] = await Promise.all([
-    getHomepageCategories(locale),
-    bestSellingFromHomepage.length > 0
-      ? Promise.resolve([] as ProductItem[])
-      : getHomepageProductCollection({
-          limit: 8,
+      const [mainCategories, fallbackBestSellingProducts, currentPromotions, fallbackPartnerBrands, newProducts] = await Promise.all([
+        getHomepageCategories(locale),
+        bestSellingFromHomepage.length > 0
+          ? Promise.resolve([] as ProductItem[])
+          : getHomepageProductCollection({
+              limit: 8,
+              locale,
+              sort: '-updatedAt',
+              where: {
+                and: [{ featured: { equals: true } }, { stockStatus: { not_equals: 'out_of_stock' } }]
+              }
+            }),
+        getHomepageProductCollection({
+          limit: 2,
           locale,
           sort: '-updatedAt',
           where: {
-            and: [{ featured: { equals: true } }, { stockStatus: { not_equals: 'out_of_stock' } }]
+            and: [{ promotionalProduct: { equals: true } }, { stockStatus: { not_equals: 'out_of_stock' } }]
           }
         }),
-    getHomepageProductCollection({
-      limit: 2,
-      locale,
-      sort: '-updatedAt',
-      where: {
-        and: [{ promotionalProduct: { equals: true } }, { stockStatus: { not_equals: 'out_of_stock' } }]
-      }
-    }),
-    partnerBrandsFromHomepage.length > 0 ? Promise.resolve([] as BrandItem[]) : getFeaturedBrands(locale),
-    getHomepageProductCollection({
-      limit: 8,
-      locale,
-      sort: '-createdAt',
-      where: {
-        and: [{ newProduct: { equals: true } }, { stockStatus: { not_equals: 'out_of_stock' } }]
-      }
-    })
-  ])
+        partnerBrandsFromHomepage.length > 0 ? Promise.resolve([] as BrandItem[]) : getFeaturedBrands(locale),
+        getHomepageProductCollection({
+          limit: 8,
+          locale,
+          sort: '-createdAt',
+          where: {
+            and: [{ newProduct: { equals: true } }, { stockStatus: { not_equals: 'out_of_stock' } }]
+          }
+        })
+      ])
 
-  return {
-    bestSellingProducts: bestSellingFromHomepage.length > 0 ? bestSellingFromHomepage : fallbackBestSellingProducts,
-    currentPromotions,
-    mainCategories,
-    newProducts,
-    partnerBrands: partnerBrandsFromHomepage.length > 0 ? partnerBrandsFromHomepage : fallbackPartnerBrands.slice(0, 12)
-  }
+      return {
+        bestSellingProducts: bestSellingFromHomepage.length > 0 ? bestSellingFromHomepage : fallbackBestSellingProducts,
+        currentPromotions,
+        mainCategories,
+        newProducts,
+        partnerBrands: partnerBrandsFromHomepage.length > 0 ? partnerBrandsFromHomepage : fallbackPartnerBrands.slice(0, 12)
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.homepage,
+      tags: [STOREFRONT_TAGS.homepage, STOREFRONT_TAGS.categories, STOREFRONT_TAGS.brands, STOREFRONT_TAGS.promotions, STOREFRONT_TAGS.products]
+    }
+  )
 }
 
 function getSort(sort?: string): string {
@@ -713,29 +811,31 @@ function getSort(sort?: string): string {
       return '-publicPrice'
     case 'new':
       return '-createdAt'
+    case 'promotions':
+      return '-promotionalProduct'
     default:
-      return 'name'
+      return '-featured'
   }
 }
 
-async function getBrandIdBySlug(locale: Locale, slug?: string): Promise<ID | undefined> {
-  if (!slug) {
-    return undefined
+async function getBrandIdsBySlugs(locale: Locale, slugs: string[]): Promise<ID[]> {
+  if (slugs.length === 0) {
+    return []
   }
 
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'brands',
-    limit: 1,
+    limit: Math.min(slugs.length, 100),
     locale,
     where: {
       slug: {
-        equals: slug
+        in: slugs
       }
     }
   })
 
-  return (result.docs[0] as BrandDoc | undefined)?.id
+  return (result.docs as BrandDoc[]).map((brand) => brand.id)
 }
 
 export async function getProducts(query: ProductQuery): Promise<ProductListing> {
@@ -745,13 +845,18 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
     const payload = await getPayloadClient()
     const and: Where[] = []
 
-    if (query.categoryId) {
+    if (query.categoryIds?.length) {
+      and.push({ category: { in: query.categoryIds } })
+    } else if (query.categoryId) {
       and.push({ category: { equals: query.categoryId } })
     }
 
-    const brandId = await getBrandIdBySlug(query.locale, query.brandSlug)
-    if (brandId) {
-      and.push({ brand: { equals: brandId } })
+    const requestedBrandSlugs = query.brandSlugs ?? (query.brandSlug ? [query.brandSlug] : [])
+    const brandIds = await getBrandIdsBySlugs(query.locale, requestedBrandSlugs)
+    if (brandIds.length > 0) {
+      and.push({ brand: { in: brandIds } })
+    } else if (requestedBrandSlugs.length > 0) {
+      and.push({ id: { exists: false } })
     }
 
     if (typeof query.minPrice === 'number') {
@@ -762,7 +867,9 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
       and.push({ publicPrice: { less_than_equal: query.maxPrice } })
     }
 
-    if (query.inStock) {
+    if (query.stockStatuses?.length) {
+      and.push({ stockStatus: { in: query.stockStatuses } })
+    } else if (query.inStock) {
       and.push({ stockStatus: { not_equals: 'out_of_stock' } })
     }
 
@@ -770,11 +877,37 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
       and.push({ promotionalProduct: { equals: true } })
     }
 
+    if (query.newProduct) {
+      and.push({ newProduct: { equals: true } })
+    }
+
+    if (query.featured) {
+      and.push({ featured: { equals: true } })
+    }
+
+    const search = query.search?.trim().slice(0, 80)
+    if (search) {
+      const matchingBrands = await payload.find({
+        collection: 'brands',
+        limit: 50,
+        locale: query.locale,
+        where: { name: { like: search } }
+      })
+      const matchingBrandIds = (matchingBrands.docs as BrandDoc[]).map((brand) => brand.id)
+      const or: Where[] = [{ name: { like: search } }, { sku: { like: search } }, { shortDescription: { like: search } }]
+
+      if (matchingBrandIds.length > 0) {
+        or.push({ brand: { in: matchingBrandIds } })
+      }
+
+      and.push({ or })
+    }
+
     const where: Where = and.length > 0 ? { and } : {}
     const result = await payload.find({
       collection: 'products',
       depth: 2,
-      limit: 12,
+      limit: query.pageSize ?? 12,
       locale: query.locale,
       page: query.page ?? 1,
       sort: getSort(query.sort),
@@ -800,27 +933,36 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
 }
 
 export async function getProductBySlug(locale: Locale, slug: string): Promise<ProductItem | null> {
-  noStore()
+  return cacheBySlug(
+    'product-by-slug',
+    locale,
+    slug,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'products',
+          depth: 2,
+          limit: 1,
+          locale,
+          where: {
+            slug: {
+              equals: slug
+            }
+          }
+        })
 
-  try {
-    const payload = await getPayloadClient()
-    const result = await payload.find({
-      collection: 'products',
-      depth: 2,
-      limit: 1,
-      locale,
-      where: {
-        slug: {
-          equals: slug
-        }
+        const doc = result.docs[0] as ProductDoc | undefined
+        return doc ? mapProduct(doc, locale) ?? null : null
+      } catch {
+        return null
       }
-    })
-
-    const doc = result.docs[0] as ProductDoc | undefined
-    return doc ? mapProduct(doc, locale) ?? null : null
-  } catch {
-    return null
-  }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.product,
+      tags: [STOREFRONT_TAGS.products, `product:${slug}`]
+    }
+  )
 }
 
 export async function searchProducts(locale: Locale, rawQuery: string): Promise<ProductItem[]> {

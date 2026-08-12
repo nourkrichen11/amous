@@ -17,6 +17,7 @@ export type CategoryItem = {
   shortDescription?: string
   longDescription?: unknown
   image?: MediaItem
+  icon?: string
   displayOrder?: number
   featured?: boolean
   showOnHomepage?: boolean
@@ -56,6 +57,8 @@ export type ProductItem = {
   name: string
   slug: string
   sku: string
+  manufacturerReference?: string
+  barcode?: string
   shortDescription?: string
   fullDescription?: string
   category?: CategoryItem
@@ -65,8 +68,10 @@ export type ProductItem = {
   previousPrice?: number
   vatRate: number
   stockQuantity: number
+  reservedStock?: number
+  lowStockThreshold?: number
   stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock'
-  unit: 'piece' | 'box' | 'metre' | 'litre' | 'kilogram' | 'pack'
+  unit: 'piece' | 'unit' | 'box' | 'lot' | 'metre' | 'square_metre' | 'kilogram' | 'litre' | 'pair' | 'roll' | 'bag' | 'pack'
   minimumOrderQuantity: number
   quantityIncrement: number
   featured?: boolean
@@ -112,12 +117,19 @@ export type HomepageSectionsData = {
 export type ProductQuery = {
   locale: Locale
   categoryId?: ID
+  categoryIds?: ID[]
   brandSlug?: string
+  brandSlugs?: string[]
   minPrice?: number
   maxPrice?: number
   inStock?: boolean
+  stockStatuses?: ProductItem['stockStatus'][]
   promotion?: boolean
+  newProduct?: boolean
+  featured?: boolean
+  search?: string
   page?: number
+  pageSize?: number
   sort?: string
 }
 

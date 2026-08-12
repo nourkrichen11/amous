@@ -2,9 +2,10 @@ import configPromise from '@payload-config'
 import { logout as payloadLogout } from '@payloadcms/next/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { createLocalReq, getPayload } from 'payload'
+import { createLocalReq } from 'payload'
 
 import type { Locale } from '@/i18n/config'
+import { getPayloadClient } from '@/lib/payload/getPayload'
 
 import type { AuthUser, AuthUserSummary } from './types'
 import { isValidReturnTo } from './validation'
@@ -30,7 +31,7 @@ function mapUser(user: Record<string, unknown> | null | undefined): AuthUser | n
 }
 
 export async function getAuthState() {
-  const payload = await getPayload({ config: configPromise, cron: true })
+  const payload = await getPayloadClient()
   const headerStore = await headers()
   const req = await createLocalReq({}, payload)
   const authResult = await payload.auth({
@@ -80,6 +81,51 @@ export async function requireCustomerUser(locale: Locale, returnTo?: string) {
   }
 
   return user
+}
+
+export async function requireAdminUser() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect('/admin')
+  }
+
+  if (user.role !== 'admin') {
+    redirect('/fr')
+  }
+
+  return user
+}
+
+export async function requireAdminAccess() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return {
+      error: {
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentification requise.',
+        status: 401 as const
+      },
+      user: null
+    }
+  }
+
+  if (user.role !== 'admin') {
+    return {
+      error: {
+        code: 'ADMIN_ACCESS_DENIED',
+        message: "Ce compte n'est pas autorise a acceder a l'administration.",
+        status: 403 as const
+      },
+      user: null
+    }
+  }
+
+  return {
+    error: null,
+    user
+  }
 }
 
 export async function logoutCurrentUser() {

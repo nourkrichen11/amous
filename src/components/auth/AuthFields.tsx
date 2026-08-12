@@ -100,7 +100,7 @@ export function FormField({
           aria-invalid={error ? true : undefined}
           autoComplete={autoComplete}
           className={cn(
-            'min-h-[48px] w-full rounded-2xl border bg-white px-4 text-sm text-[#152033] shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition',
+            'min-h-[54px] w-full rounded-2xl border bg-white px-4 text-sm text-[#152033] shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition',
             Icon ? 'pl-11' : '',
             error
               ? 'border-red-300 focus:border-red-400'
@@ -156,7 +156,7 @@ export function PasswordField({
           aria-invalid={error ? true : undefined}
           autoComplete={autoComplete}
           className={cn(
-            'min-h-[48px] w-full rounded-2xl border bg-white px-4 pl-11 pr-12 text-sm text-[#152033] shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition',
+            'min-h-[54px] w-full rounded-2xl border bg-white px-4 pl-11 pr-12 text-sm text-[#152033] shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition',
             error
               ? 'border-red-300 focus:border-red-400'
               : 'border-[#DDE3EA] focus:border-[#0756C9] hover:border-[#BFC9D5]'
@@ -214,7 +214,7 @@ export function SubmitButton({ idleLabel, pendingLabel }: { idleLabel: string; p
 
   return (
     <Button
-      className="w-full rounded-2xl bg-[#E31E24] py-3 text-[15px] font-semibold text-white shadow-[0_14px_32px_rgba(227,30,36,0.24)] hover:bg-[#C81A20]"
+      className="min-h-[54px] w-full rounded-2xl bg-[#E31E24] py-3 text-[15px] font-semibold text-white shadow-[0_14px_32px_rgba(227,30,36,0.24)] hover:bg-[#C81A20]"
       disabled={pending}
       type="submit"
     >

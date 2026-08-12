@@ -4,6 +4,10 @@ import { isAdmin } from '@/access/isAdmin'
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  admin: {
+    group: 'Contenu',
+    useAsTitle: 'altFr'
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

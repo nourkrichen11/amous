@@ -1,10 +1,11 @@
-import configPromise from '@payload-config'
-import { login as payloadLogin } from '@payloadcms/next/auth'
-import { getPayload } from 'payload'
+import { cookies as getCookies } from 'next/headers'
+import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
+import { generatePayloadCookie } from 'payload'
 
 import type { Locale } from '@/i18n/config'
+import { getPayloadClient } from '@/lib/payload/getPayload'
 
-import type { AddressInput, AuthResult, AuthUserSummary } from './types'
+import type { AddressInput, AuthResult, AuthUser, AuthUserSummary } from './types'
 import {
   addressSchema,
   changePasswordSchema,
@@ -20,6 +21,8 @@ import {
 
 const genericInvalidCredentials = 'Adresse e-mail ou mot de passe incorrect.'
 const genericForgotPasswordMessage = 'Si un compte correspond a cette adresse, un lien de reinitialisation sera envoye.'
+const adminAccessDeniedMessage = "Ce compte n'est pas autorise a acceder a l'administration."
+const authCollectionSlug = 'users'
 
 function mapUserSummary(user: Record<string, unknown>): AuthUserSummary {
   return {
@@ -36,8 +39,101 @@ function resolveReturnTo(locale: Locale, returnTo?: string | null, fallback = `/
   return isValidReturnTo(returnTo) ? String(returnTo) : fallback
 }
 
-async function getPayloadClient() {
-  return getPayload({ config: configPromise, cron: true })
+export function resolveCustomerLoginRedirect(user: AuthUserSummary, locale: Locale, returnTo?: string | null) {
+  if (user.role === 'admin') {
+    return '/admin'
+  }
+
+  return resolveReturnTo(locale, returnTo)
+}
+
+export function buildCustomerRegistrationData(input: {
+  email: string
+  firstName: string
+  lastName: string
+  locale: Locale
+  password: string
+  phone?: string | null
+}) {
+  const phone = normalizeTunisianPhone(input.phone)
+
+  return {
+    active: true,
+    email: normalizeEmail(input.email),
+    emailVerified: false,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    normalizedPhone: phone,
+    password: input.password,
+    phone,
+    preferredLocale: input.locale,
+    role: 'customer' as const
+  }
+}
+
+async function setAuthCookie(token: string) {
+  const payload = await getPayloadClient()
+  const authConfig = payload.collections[authCollectionSlug]?.config.auth
+
+  if (!authConfig) {
+    throw new Error(`No auth config found for collection: ${authCollectionSlug}`)
+  }
+
+  const cookieStore = await getCookies()
+  const cookieExpiration = authConfig.tokenExpiration ? new Date(Date.now() + authConfig.tokenExpiration) : undefined
+  const payloadCookie = generatePayloadCookie({
+    collectionAuthConfig: authConfig,
+    cookiePrefix: payload.config.cookiePrefix,
+    expires: cookieExpiration,
+    returnCookieAsObject: true,
+    token
+  })
+
+  if (payloadCookie.value) {
+    const sameSite = typeof authConfig.cookies.sameSite === 'string' ? authConfig.cookies.sameSite.toLowerCase() : 'lax'
+
+    cookieStore.set(payloadCookie.name, payloadCookie.value, {
+      domain: authConfig.cookies.domain,
+      expires: payloadCookie.expires ? new Date(payloadCookie.expires) : undefined,
+      httpOnly: true,
+      sameSite: sameSite as ResponseCookie['sameSite'],
+      secure: authConfig.cookies.secure || false
+    })
+  }
+}
+
+async function updateLastLoginAt(userId: number | string) {
+  const payload = await getPayloadClient()
+
+  await payload.update({
+    collection: authCollectionSlug,
+    data: {
+      lastLoginAt: new Date().toISOString()
+    },
+    id: userId,
+    overrideAccess: true
+  })
+}
+
+export async function authenticateUser(input: { email: string; password: string }) {
+  const payload = await getPayloadClient()
+  const result = await payload.login({
+    collection: authCollectionSlug,
+    data: {
+      email: normalizeEmail(input.email),
+      password: input.password
+    }
+  })
+
+  if (result.token) {
+    await setAuthCookie(result.token)
+  }
+
+  const user = mapUserSummary(result.user as Record<string, unknown>)
+
+  await updateLastLoginAt(user.id)
+
+  return user
 }
 
 export async function registerCustomer(input: {
@@ -66,7 +162,6 @@ export async function registerCustomer(input: {
 
   const payload = await getPayloadClient()
   const email = normalizeEmail(parsed.data.email)
-  const phone = normalizeTunisianPhone(parsed.data.phone)
   const existing = await payload.find({
     collection: 'users',
     limit: 1,
@@ -89,29 +184,24 @@ export async function registerCustomer(input: {
 
   const created = await payload.create({
     collection: 'users',
-    data: {
-      active: true,
+    data: buildCustomerRegistrationData({
       email,
-      emailVerified: false,
       firstName: parsed.data.firstName,
       lastName: parsed.data.lastName,
+      locale: input.locale,
       password: parsed.data.password,
-      phone,
-      preferredLocale: input.locale,
-      role: 'customer'
-    },
+      phone: parsed.data.phone
+    }),
     overrideAccess: true
   })
 
-  const loginResult = await payloadLogin({
-    collection: 'users',
-    config: configPromise,
+  const loginResult = await authenticateUser({
     email,
     password: parsed.data.password
   })
 
   return {
-      data: mapUserSummary((loginResult.user || created) as Record<string, unknown>),
+      data: loginResult || mapUserSummary(created as Record<string, unknown>),
       ok: true,
       redirectTo: resolveReturnTo(input.locale, input.returnTo)
   }
@@ -135,22 +225,15 @@ export async function loginCustomer(input: {
   }
 
   try {
-    const result = await payloadLogin({
-      collection: 'users',
-      config: configPromise,
+    const user = await authenticateUser({
       email: normalizeEmail(parsed.data.email),
       password: parsed.data.password
     })
 
-    const user = result.user as Record<string, unknown>
-    if (user.role !== 'customer') {
-      return { formError: genericInvalidCredentials, ok: false }
-    }
-
     return {
-      data: mapUserSummary(user),
+      data: user,
       ok: true,
-      redirectTo: resolveReturnTo(input.locale, parsed.data.returnTo)
+      redirectTo: resolveCustomerLoginRedirect(user, input.locale, parsed.data.returnTo)
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
@@ -171,27 +254,33 @@ export async function loginCustomer(input: {
 
 export async function loginAdmin(input: { email: string; password: string }): Promise<AuthResult<AuthUserSummary>> {
   try {
-    const result = await payloadLogin({
-      collection: 'users',
-      config: configPromise,
-      email: normalizeEmail(input.email),
+    const user = await authenticateUser({
+      email: input.email,
       password: input.password
     })
 
-    const user = result.user as Record<string, unknown>
     if (user.role !== 'admin') {
       return {
-        formError: genericInvalidCredentials,
+        formError: adminAccessDeniedMessage,
         ok: false
       }
     }
 
     return {
-      data: mapUserSummary(user),
+      data: user,
       ok: true,
       redirectTo: '/admin'
     }
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+
+    if (message.includes('USER_INACTIVE')) {
+      return {
+        formError: 'Ce compte administrateur est desactive.',
+        ok: false
+      }
+    }
+
     return {
       formError: genericInvalidCredentials,
       ok: false
@@ -308,6 +397,7 @@ export async function updateProfile(input: { email: string; firstName: string; l
       email: normalizedEmail,
       firstName: parsed.data.firstName,
       lastName: parsed.data.lastName,
+      normalizedPhone: normalizeTunisianPhone(parsed.data.phone),
       phone: normalizeTunisianPhone(parsed.data.phone)
     },
     id: input.userId,
@@ -317,6 +407,20 @@ export async function updateProfile(input: { email: string; firstName: string; l
   return {
     ok: true as const
   }
+}
+
+export async function updateOwnProfile(actor: AuthUser, input: { email: string; firstName: string; lastName: string; phone?: string }) {
+  if (actor.role !== 'customer') {
+    return {
+      fieldErrors: {},
+      ok: false as const
+    }
+  }
+
+  return updateProfile({
+    ...input,
+    userId: actor.id
+  })
 }
 
 export async function changePassword(input: { confirmNewPassword: string; currentPassword: string; email: string; newPassword: string; userId: number | string }) {
@@ -361,6 +465,21 @@ export async function changePassword(input: { confirmNewPassword: string; curren
   return {
     ok: true as const
   }
+}
+
+export async function changeOwnPassword(actor: AuthUser, input: { confirmNewPassword: string; currentPassword: string; newPassword: string }) {
+  if (actor.role !== 'customer') {
+    return {
+      fieldErrors: {},
+      ok: false as const
+    }
+  }
+
+  return changePassword({
+    ...input,
+    email: actor.email,
+    userId: actor.id
+  })
 }
 
 export async function saveAddress(input: (Omit<AddressInput, 'phone'> & { phone?: string }) & { userId: number | string }) {

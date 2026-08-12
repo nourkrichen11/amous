@@ -1,6 +1,7 @@
 import type { CollectionBeforeValidateHook, CollectionConfig } from 'payload'
 
 import { activeOnly, isAdmin } from '@/access/isAdmin'
+import { revalidateCategoryAfterChange, revalidateCategoryAfterDelete } from '@/lib/cache/invalidation'
 
 async function getAncestorIds({
   categoryId,
@@ -71,6 +72,7 @@ export const Categories: CollectionConfig = {
   slug: 'categories',
   admin: {
     defaultColumns: ['name', 'parent', 'displayOrder', 'showOnHomepage', 'active'],
+    group: 'Catalogue',
     useAsTitle: 'name'
   },
   access: {
@@ -105,8 +107,12 @@ export const Categories: CollectionConfig = {
       name: 'image',
       type: 'upload',
       relationTo: 'media',
-      validate: (value: unknown, { siblingData }: { siblingData?: { parent?: unknown } }) => {
+      validate: (value: unknown, { siblingData }: { siblingData?: { active?: boolean; parent?: unknown } }) => {
         if (siblingData?.parent) {
+          return true
+        }
+
+        if (siblingData?.active === false) {
           return true
         }
 
@@ -141,7 +147,10 @@ export const Categories: CollectionConfig = {
     },
     {
       name: 'icon',
-      type: 'text'
+      type: 'text',
+      admin: {
+        description: 'Reference existante de l icone AMOUS. Ne pas remplacer par une icone generique.'
+      }
     },
     {
       name: 'seo',
@@ -155,6 +164,8 @@ export const Categories: CollectionConfig = {
     }
   ],
   hooks: {
+    afterChange: [revalidateCategoryAfterChange],
+    afterDelete: [revalidateCategoryAfterDelete],
     beforeValidate: [validateCategoryHierarchy]
   }
 }
