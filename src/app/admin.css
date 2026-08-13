@@ -2331,6 +2331,13 @@
   display: none !important;
 }
 
+/* Payload also renders a legacy navigation toggler before the admin shell.
+   The usable mobile trigger lives inside the app header, so this wrapper must
+   not reserve a separate row above the shell. */
+.template-default__nav-toggler-wrapper {
+  display: none !important;
+}
+
 @media (max-width: 1024px) {
   .template-default .app-header__wrapper {
     padding: 0 var(--admin-space-6) !important;
