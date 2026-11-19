@@ -129,6 +129,8 @@ export type ProductQuery = {
   newProduct?: boolean
   featured?: boolean
   search?: string
+  /** 'nameAndReference' limits search to name, SKU and manufacturer reference (category search). */
+  searchScope?: 'catalog' | 'nameAndReference'
   page?: number
   pageSize?: number
   sort?: string

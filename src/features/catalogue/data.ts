@@ -58,6 +58,7 @@ type BrandDoc = {
 
 type ProductDoc = {
   id: ID
+  active?: boolean
   name?: string
   slug?: string
   sku?: string
@@ -126,6 +127,8 @@ type SiteSettingsGlobalDoc = {
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
+
+const PUBLISHED_PRODUCT: Where = { active: { equals: true } }
 
 function resolveRelation<T extends { id: ID }>(value: Relation<T>): T | undefined {
   return isObject(value) && 'id' in value ? (value as T) : undefined
@@ -259,22 +262,60 @@ function mapProduct(product: ProductDoc, locale: Locale): ProductItem | undefine
   }
 }
 
+async function getDirectChildIds(locale: Locale, parentIds: ID[]): Promise<Map<ID, ID[]>> {
+  const children = new Map<ID, ID[]>(parentIds.map((id) => [id, []]))
+
+  if (parentIds.length === 0) {
+    return children
+  }
+
+  const payload = await getPayloadClient()
+  const result = await payload.find({
+    collection: 'categories',
+    depth: 0,
+    limit: 500,
+    locale,
+    pagination: false,
+    where: { parent: { in: parentIds } }
+  })
+
+  ;(result.docs as Array<{ id: ID; parent?: ID | { id: ID } | null }>).forEach((doc) => {
+    const parentId = typeof doc.parent === 'object' && doc.parent ? doc.parent.id : doc.parent
+    const key = parentIds.find((id) => String(id) === String(parentId))
+
+    if (key !== undefined) {
+      children.get(key)?.push(doc.id)
+    }
+  })
+
+  return children
+}
+
+/** A category's listing scope: the category itself plus its direct subcategories. */
+export async function getCategoryScopeIds(locale: Locale, categoryId: ID): Promise<ID[]> {
+  try {
+    const children = await getDirectChildIds(locale, [categoryId])
+    return [categoryId, ...(children.get(categoryId) ?? [])]
+  } catch {
+    return [categoryId]
+  }
+}
+
 async function getProductCountByCategoryIds(locale: Locale, categoryIds: ID[]) {
   if (categoryIds.length === 0) {
     return new Map<ID, number>()
   }
 
   const payload = await getPayloadClient()
+  const children = await getDirectChildIds(locale, categoryIds)
   const entries = await Promise.all(
     categoryIds.map(async (categoryId) => {
-      const result = await payload.find({
+      // Same scope and published rule as the category listing page, so the counts match it.
+      const result = await payload.count({
         collection: 'products',
-        limit: 1,
         locale,
         where: {
-          category: {
-            equals: categoryId
-          }
+          and: [PUBLISHED_PRODUCT, { category: { in: [categoryId, ...(children.get(categoryId) ?? [])] } }]
         }
       })
 
@@ -316,7 +357,7 @@ async function getHomepageProductCollection({
       limit,
       locale,
       sort,
-      where
+      where: { and: [PUBLISHED_PRODUCT, where] }
     })
 
     return (result.docs as ProductDoc[])
@@ -402,7 +443,7 @@ export async function getHomepage(locale: Locale): Promise<HomepageData | null> 
           featuredProducts:
             homepage.featuredProducts
               ?.map((product) => resolveRelation(product))
-              .map((product) => (product ? mapProduct(product, locale) : undefined))
+              .map((product) => (product && product.active !== false ? mapProduct(product, locale) : undefined))
               .filter((product): product is ProductItem => Boolean(product))
               .slice(0, 12) ?? [],
           heroCtaLabel: homepage.heroCtaLabel,
@@ -818,6 +859,8 @@ function getSort(sort?: string): string {
       return '-publicPrice'
     case 'new':
       return '-createdAt'
+    case 'name':
+      return 'name'
     case 'promotions':
       return '-promotionalProduct'
     default:
@@ -850,7 +893,9 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
 
   try {
     const payload = await getPayloadClient()
-    const and: Where[] = []
+    // The Local API bypasses collection access rules, so the storefront must apply the
+    // "Publié" (active) rule itself — otherwise unpublished products are listed and counted.
+    const and: Where[] = [PUBLISHED_PRODUCT]
 
     if (query.categoryIds?.length) {
       and.push({ category: { in: query.categoryIds } })
@@ -901,9 +946,12 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
         where: { name: { like: search } }
       })
       const matchingBrandIds = (matchingBrands.docs as BrandDoc[]).map((brand) => brand.id)
-      const or: Where[] = [{ name: { like: search } }, { sku: { like: search } }, { shortDescription: { like: search } }]
+      const or: Where[] =
+        query.searchScope === 'nameAndReference'
+          ? [{ name: { like: search } }, { sku: { like: search } }, { manufacturerReference: { like: search } }]
+          : [{ name: { like: search } }, { sku: { like: search } }, { manufacturerReference: { like: search } }, { shortDescription: { like: search } }]
 
-      if (matchingBrandIds.length > 0) {
+      if (matchingBrandIds.length > 0 && query.searchScope !== 'nameAndReference') {
         or.push({ brand: { in: matchingBrandIds } })
       }
 
@@ -1017,3 +1065,75 @@ export async function searchProducts(locale: Locale, rawQuery: string): Promise<
     return []
   }
 }
+
+export type CategoryListingFacets = {
+  brands: Array<BrandItem & { count: number }>
+  price?: { max: number; min: number }
+  stock: Record<ProductItem['stockStatus'], number>
+}
+
+/**
+ * Filter options that actually apply to a category scope: brands present (with counts),
+ * the price span, and stock-status counts. Reads only three columns of published products.
+ */
+export async function getCategoryListingFacets(locale: Locale, categoryIds: ID[]): Promise<CategoryListingFacets> {
+  const empty: CategoryListingFacets = { brands: [], stock: { in_stock: 0, low_stock: 0, out_of_stock: 0 } }
+
+  if (categoryIds.length === 0) {
+    return empty
+  }
+
+  return cacheWithKey(
+    ['category-facets', locale, categoryIds.map(String).join(',')],
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const [productsResult, brands] = await Promise.all([
+          payload.find({
+            collection: 'products',
+            depth: 0,
+            locale,
+            pagination: false,
+            select: { brand: true, publicPrice: true, stockStatus: true },
+            where: { and: [PUBLISHED_PRODUCT, { category: { in: categoryIds } }] }
+          }),
+          getBrands(locale)
+        ])
+
+        const brandCounts = new Map<string, number>()
+        const stock = { ...empty.stock }
+        let min = Number.POSITIVE_INFINITY
+        let max = 0
+
+        ;(productsResult.docs as Array<{ brand?: ID | { id: ID } | null; publicPrice?: number; stockStatus?: ProductItem['stockStatus'] }>).forEach((doc) => {
+          const brandId = typeof doc.brand === 'object' && doc.brand ? doc.brand.id : doc.brand
+          if (brandId !== undefined && brandId !== null) {
+            brandCounts.set(String(brandId), (brandCounts.get(String(brandId)) ?? 0) + 1)
+          }
+          if (doc.stockStatus && doc.stockStatus in stock) {
+            stock[doc.stockStatus] += 1
+          }
+          if (typeof doc.publicPrice === 'number') {
+            min = Math.min(min, doc.publicPrice)
+            max = Math.max(max, doc.publicPrice)
+          }
+        })
+
+        return {
+          brands: brands
+            .filter((brand) => brandCounts.has(String(brand.id)))
+            .map((brand) => ({ ...brand, count: brandCounts.get(String(brand.id)) ?? 0 })),
+          price: Number.isFinite(min) ? { max, min } : undefined,
+          stock
+        }
+      } catch {
+        return empty
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.product,
+      tags: [STOREFRONT_TAGS.products, STOREFRONT_TAGS.brands, STOREFRONT_TAGS.categories]
+    }
+  )
+}
+

@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/features/auth/session'
 
 import { clearCartCookie, getCartCookie, setCartCookie } from './cookies'
 import { createCashOnDeliveryOrder } from './orderService'
+import { resolveCartReturnPath, withCartStatus } from './returnPath'
 import { addProductToCart, clearCart, removeCartItem, updateCartItem } from './service'
 import { checkoutSchema, quantitySchema } from './validation'
 
@@ -24,10 +25,11 @@ export async function addToCartAction(formData: FormData) {
   const locale = asLocale(formString(formData, 'locale'))
   const productId = formString(formData, 'productId')
   const parsedQuantity = quantitySchema.safeParse(formData.get('quantity'))
-  const sourcePath = formString(formData, 'sourcePath') || `/${locale}/panier`
+  const sourcePath = resolveCartReturnPath(formString(formData, 'sourcePath'), `/${locale}/panier`)
+  const pathname = sourcePath.split('?')[0]
 
   if (!productId || !parsedQuantity.success) {
-    redirect(`${sourcePath}?cartError=invalid_quantity`)
+    redirect(withCartStatus(sourcePath, { cartError: 'invalid_quantity' }))
   }
 
   const result = await addProductToCart(await getCartCookie(), locale, productId, parsedQuantity.data)
@@ -36,14 +38,14 @@ export async function addToCartAction(formData: FormData) {
     await setCartCookie(result.cart.identifier)
   }
 
-  revalidatePath(sourcePath)
+  revalidatePath(pathname)
   revalidatePath(`/${locale}/panier`)
 
   if (result.issue) {
-    redirect(`${sourcePath}?cartError=${result.issue.code}`)
+    redirect(withCartStatus(sourcePath, { cartError: result.issue.code }))
   }
 
-  redirect(`${sourcePath}?cart=added`)
+  redirect(withCartStatus(sourcePath, { cart: 'added' }))
 }
 
 export async function updateCartItemAction(formData: FormData) {
