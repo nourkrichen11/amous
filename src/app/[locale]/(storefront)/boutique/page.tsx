@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
 
+import { CartStatusNotice } from '@/components/cart/CartStatusNotice'
 import { CategoryRail } from '@/components/catalogue/CategoryRail'
-import { CatalogueFilters } from '@/components/catalogue/CatalogueFilters'
+import { CatalogueFilters, type CatalogueFiltersProps } from '@/components/catalogue/CatalogueFilters'
 import { CatalogueToolbar } from '@/components/catalogue/CatalogueToolbar'
 import { Pagination } from '@/components/catalogue/Pagination'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { getActiveFilters, getClearFiltersHref } from '@/features/catalogue/activeFilters'
 import { getAllParentCategories, getBrands, getProducts } from '@/features/catalogue/data'
-import { normalizeSearchParams, parseList, parseMillimePrice, parsePage, parsePageSize } from '@/features/catalogue/searchParams'
-import type { ProductItem } from '@/features/catalogue/types'
+import { buildListingQuery } from '@/features/catalogue/listingQuery'
+import { normalizeSearchParams, withoutTransientParams } from '@/features/catalogue/searchParams'
 import { buildCatalogueHref } from '@/features/catalogue/url'
 import { isLocale } from '@/i18n/config'
 
@@ -33,15 +35,22 @@ export async function generateMetadata({ params }: ShopPageProps): Promise<Metad
   }
 }
 
-function isStockStatus(value: string): value is ProductItem['stockStatus'] {
-  return ['in_stock', 'low_stock', 'out_of_stock'].includes(value)
-}
+const SHOP_SORT_OPTIONS = [
+  { label: 'Pertinence', value: 'relevance' },
+  { label: 'Plus récents', value: 'new' },
+  { label: 'Prix croissant', value: 'price-asc' },
+  { label: 'Prix décroissant', value: 'price-desc' },
+  { label: 'Nom (A–Z)', value: 'name' },
+  { label: 'Promotions', value: 'promotions' }
+] as const
+const SHOP_DEFAULT_PAGE_SIZE = 12
 
 export default async function ShopPage({ params, searchParams }: ShopPageProps) {
   const { locale: rawLocale } = await params
   const locale = isLocale(rawLocale) ? rawLocale : 'fr'
   const path = `/${locale}/boutique`
-  const resolvedParams = normalizeSearchParams(await searchParams)
+  const rawParams = normalizeSearchParams(await searchParams)
+  const resolvedParams = withoutTransientParams(rawParams)
   const [categories, brands] = await Promise.all([getAllParentCategories(locale), getBrands(locale)])
   const selectedCategory = categories.find((category) => category.slug === resolvedParams.category)
   const selectedSubcategory = selectedCategory?.children?.find((category) => category.slug === resolvedParams.subcategory)
@@ -50,25 +59,25 @@ export default async function ShopPage({ params, searchParams }: ShopPageProps) 
     : selectedCategory
       ? [selectedCategory.id, ...(selectedCategory.children?.map((category) => category.id) ?? [])]
       : undefined
-  const stockStatuses = parseList(resolvedParams.stock).filter(isStockStatus)
-  const pageSize = parsePageSize(resolvedParams.limit)
-  const listing = await getProducts({
-    brandSlugs: parseList(resolvedParams.brand),
+  const query = buildListingQuery(resolvedParams, {
     categoryIds,
-    featured: resolvedParams.featured === '1',
-    inStock: resolvedParams.inStock === '1',
+    defaultPageSize: SHOP_DEFAULT_PAGE_SIZE,
+    defaultSort: 'relevance',
     locale,
-    maxPrice: parseMillimePrice(resolvedParams.maxPrice),
-    minPrice: parseMillimePrice(resolvedParams.minPrice),
-    newProduct: resolvedParams.new === '1',
-    page: parsePage(resolvedParams.page),
-    pageSize,
-    promotion: resolvedParams.promotion === '1',
-    search: resolvedParams.q,
-    sort: resolvedParams.sort,
-    stockStatuses
+    sortOptions: SHOP_SORT_OPTIONS.map((option) => option.value)
   })
+  const listing = await getProducts(query)
   const sourcePath = buildCatalogueHref(path, resolvedParams, { page: resolvedParams.page })
+  const clearHref = getClearFiltersHref(path, resolvedParams)
+  const filterProps: Omit<CatalogueFiltersProps, 'variant'> = {
+    brands,
+    categories,
+    clearHref,
+    locale,
+    params: resolvedParams,
+    path,
+    totalDocs: listing.totalDocs
+  }
 
   return (
     <main className="bg-[var(--color-background)] py-7 sm:py-8 lg:py-10" id="main-content">
@@ -79,13 +88,26 @@ export default async function ShopPage({ params, searchParams }: ShopPageProps) 
           <CategoryRail categories={categories} params={resolvedParams} path={path} />
         </nav>
 
-        <div className="mt-5 grid min-w-0 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="mt-5 grid min-w-0 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="hidden lg:block" aria-label="Filtres du catalogue">
-            <CatalogueFilters brands={brands} categories={categories} locale={locale} params={resolvedParams} path={path} totalDocs={listing.totalDocs} variant="desktop" />
+            <CatalogueFilters {...filterProps} variant="desktop" />
           </aside>
 
           <section className="min-w-0" aria-label="Produits de la boutique">
-            <CatalogueToolbar brands={brands} categories={categories} locale={locale} params={resolvedParams} path={path} totalDocs={listing.totalDocs} />
+            <CartStatusNotice locale={locale} params={rawParams} />
+            <CatalogueToolbar
+              activeFilters={getActiveFilters({ brands, categories, params: resolvedParams, path })}
+              clearHref={clearHref}
+              defaultPageSize={SHOP_DEFAULT_PAGE_SIZE}
+              defaultSort="relevance"
+              filterProps={filterProps}
+              page={listing.page}
+              pageSize={query.pageSize ?? SHOP_DEFAULT_PAGE_SIZE}
+              params={resolvedParams}
+              path={path}
+              sortOptions={SHOP_SORT_OPTIONS}
+              totalDocs={listing.totalDocs}
+            />
             {listing.products.length > 0 ? (
               <>
                 <ProductGrid locale={locale} products={listing.products} sourcePath={sourcePath} view={resolvedParams.view === 'list' ? 'list' : 'grid'} />
@@ -93,7 +115,7 @@ export default async function ShopPage({ params, searchParams }: ShopPageProps) 
               </>
             ) : (
               <EmptyState
-                actionHref={path}
+                actionHref={clearHref}
                 actionLabel="Réinitialiser les filtres"
                 description="Essayez de retirer un filtre ou explorez une autre catégorie."
                 title="Aucun produit ne correspond à vos filtres."

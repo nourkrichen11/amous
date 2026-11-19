@@ -1,16 +1,29 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { SearchX } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-import { CatalogueFilters } from '@/components/catalogue/CatalogueFilters'
-import { CategoryCard } from '@/components/category/CategoryCard'
-import { Breadcrumbs } from '@/components/navigation/Breadcrumbs'
+import { CartStatusNotice } from '@/components/cart/CartStatusNotice'
+import { CatalogueFilters, type CatalogueFiltersProps } from '@/components/catalogue/CatalogueFilters'
+import { CatalogueToolbar } from '@/components/catalogue/CatalogueToolbar'
+import { CategorySearch } from '@/components/catalogue/CategorySearch'
 import { Pagination } from '@/components/catalogue/Pagination'
+import { CategoryCard } from '@/components/category/CategoryCard'
+import { CategoryHeader } from '@/components/category/CategoryHeader'
 import { ProductGrid } from '@/components/product/ProductGrid'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { getBrands, getCategories, getCategoryBySlug, getProducts, getRelatedCategories } from '@/features/catalogue/data'
-import { normalizeSearchParams, parseMillimePrice, parsePage } from '@/features/catalogue/searchParams'
-import { formatNumber } from '@/lib/formatting/currency'
+import { getClearFiltersHref, getActiveFilters } from '@/features/catalogue/activeFilters'
+import {
+  getActiveSubcategories,
+  getBrands,
+  getCategoryBySlug,
+  getCategoryListingFacets,
+  getProducts,
+  getRelatedCategories
+} from '@/features/catalogue/data'
+import { CATEGORY_DEFAULT_PAGE_SIZE, CATEGORY_DEFAULT_SORT, CATEGORY_SORT_OPTIONS, buildListingQuery } from '@/features/catalogue/listingQuery'
+import { normalizeSearchParams, withoutTransientParams } from '@/features/catalogue/searchParams'
+import { buildCatalogueHref } from '@/features/catalogue/url'
 import { isLocale, t } from '@/i18n/config'
 
 type CategoryPageProps = {
@@ -19,6 +32,8 @@ type CategoryPageProps = {
 }
 
 export const dynamic = 'force-dynamic'
+
+const SORT_VALUES = CATEGORY_SORT_OPTIONS.map((option) => option.value)
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { categorySlug, locale: rawLocale } = await params
@@ -48,6 +63,31 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   }
 }
 
+function NoResults({ actions, description, title }: { actions: Array<{ href: string; label: string; primary?: boolean }>; description: string; title: string }) {
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-white px-6 py-12 text-center">
+      <SearchX aria-hidden="true" className="mx-auto text-slate-300" size={40} strokeWidth={1.5} />
+      <h2 className="mt-3 text-lg font-bold text-[var(--color-navy)]">{title}</h2>
+      <p className="mx-auto mt-1.5 max-w-md text-sm text-[var(--color-text-muted)]">{description}</p>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {actions.map((action) => (
+          <Link
+            className={
+              action.primary
+                ? 'inline-flex min-h-[var(--touch-target)] items-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[#c70511]'
+                : 'inline-flex min-h-[var(--touch-target)] items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white px-4 text-sm font-semibold text-[var(--color-navy)] hover:border-[var(--color-navy)]'
+            }
+            href={action.href}
+            key={action.href + action.label}
+          >
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { categorySlug, locale: rawLocale } = await params
   const locale = isLocale(rawLocale) ? rawLocale : 'fr'
@@ -57,26 +97,54 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     notFound()
   }
 
-  const resolvedParams = normalizeSearchParams(await searchParams)
-  const [children, brands, listing, relatedCategories] = await Promise.all([
-    getCategories(locale, category.id),
+  const path = `/${locale}/c/${category.slug}`
+  const rawParams = normalizeSearchParams(await searchParams)
+  const listingParams = withoutTransientParams(rawParams)
+  const subcategories = await getActiveSubcategories(locale, category.id)
+  const scopeIds = [category.id, ...subcategories.map((child) => child.id)]
+  const selectedSub = subcategories.find((child) => child.slug === listingParams.sub)
+
+  const query = buildListingQuery(listingParams, {
+    categoryIds: selectedSub ? [selectedSub.id] : scopeIds,
+    defaultPageSize: CATEGORY_DEFAULT_PAGE_SIZE,
+    defaultSort: CATEGORY_DEFAULT_SORT,
+    locale,
+    searchScope: 'nameAndReference',
+    sortOptions: SORT_VALUES
+  })
+
+  const [brands, facets, listing, relatedCategories] = await Promise.all([
     getBrands(locale),
-    getProducts({
-      brandSlug: resolvedParams.brand,
-      categoryId: category.id,
-      inStock: resolvedParams.inStock === '1',
-      locale,
-      maxPrice: parseMillimePrice(resolvedParams.maxPrice),
-      minPrice: parseMillimePrice(resolvedParams.minPrice),
-      page: parsePage(resolvedParams.page),
-      promotion: resolvedParams.promotion === '1',
-      sort: resolvedParams.sort
-    }),
+    getCategoryListingFacets(locale, scopeIds),
+    getProducts(query),
     getRelatedCategories(locale, category)
   ])
 
-  const breadcrumbItems = [
-    { href: `/${locale}/nos-categories`, label: 'Nos categories' },
+  const categoryTotal = facets.stock.in_stock + facets.stock.low_stock + facets.stock.out_of_stock
+  const availableSubcategories = subcategories.filter((child) => (facets.categoryCounts[String(child.id)] ?? 0) > 0 || child.slug === listingParams.sub)
+  const activeFilters = getActiveFilters({ brands, params: listingParams, path, subcategories })
+  const clearHref = getClearFiltersHref(path, listingParams)
+  const hasFilters = activeFilters.some((filter) => filter.key !== 'q')
+  const searchTerm = listingParams.q?.trim()
+  const pageSize = query.pageSize ?? CATEGORY_DEFAULT_PAGE_SIZE
+  const sourcePath = buildCatalogueHref(path, listingParams, { page: listingParams.page })
+
+  const filterProps: Omit<CatalogueFiltersProps, 'variant'> = {
+    brands: facets.brands,
+    clearHref,
+    locale,
+    params: listingParams,
+    path,
+    priceBounds: facets.price,
+    showOffers: false,
+    stockCounts: facets.stock,
+    subcategories: availableSubcategories,
+    totalDocs: listing.totalDocs
+  }
+
+  const breadcrumbs = [
+    { href: `/${locale}/nos-categories`, label: 'Nos catégories' },
+    ...(category.parent ? [{ href: `/${locale}/c/${category.parent.slug}`, label: category.parent.name }] : []),
     { label: category.name }
   ]
 
@@ -85,97 +153,108 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', item: `/${locale}`, name: t(locale, 'navigation.home'), position: 1 },
-      { '@type': 'ListItem', item: `/${locale}/nos-categories`, name: 'Nos categories', position: 2 },
-      { '@type': 'ListItem', item: `/${locale}/c/${category.slug}`, name: category.name, position: 3 }
+      ...breadcrumbs.map((item, index) => ({
+        '@type': 'ListItem',
+        item: item.href ?? path,
+        name: item.label,
+        position: index + 2
+      }))
     ]
   }
 
-  return (
-    <main className="container-page py-8" id="main-content">
-      <script
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        type="application/ld+json"
+  let results: ReactNode
+  if (listing.products.length > 0) {
+    results = (
+      <>
+        <ProductGrid locale={locale} products={listing.products} sourcePath={sourcePath} view={listingParams.view === 'list' ? 'list' : 'grid'} />
+        <Pagination page={listing.page} pathname={path} searchParams={listingParams} totalPages={listing.totalPages} />
+      </>
+    )
+  } else if (listing.totalDocs > 0) {
+    results = (
+      <NoResults
+        actions={[{ href: buildCatalogueHref(path, listingParams, {}), label: 'Revenir à la première page', primary: true }]}
+        description="La page demandée n'existe pas pour cette sélection."
+        title="Cette page est vide"
       />
+    )
+  } else if (searchTerm) {
+    results = (
+      <NoResults
+        actions={[
+          { href: buildCatalogueHref(path, listingParams, { q: null }), label: 'Effacer la recherche', primary: true },
+          ...(hasFilters ? [{ href: clearHref, label: 'Tout effacer' }] : [])
+        ]}
+        description={`Aucun produit de la catégorie « ${category.name} » ne correspond à « ${searchTerm} »${hasFilters ? ' avec les filtres actifs' : ''}. Vérifiez l’orthographe ou essayez une référence.`}
+        title="Aucun résultat"
+      />
+    )
+  } else if (hasFilters) {
+    results = <NoResults actions={[{ href: clearHref, label: 'Tout effacer', primary: true }]} description="Essayez de retirer un ou plusieurs filtres." title="Aucun produit ne correspond à vos filtres" />
+  } else {
+    results = (
+      <NoResults
+        actions={[
+          { href: `/${locale}/boutique`, label: 'Voir la boutique', primary: true },
+          { href: `/${locale}/nos-categories`, label: 'Toutes les catégories' }
+        ]}
+        description="Aucun produit n’est encore disponible dans cette catégorie."
+        title="Bientôt disponible"
+      />
+    )
+  }
 
-      <Breadcrumbs items={breadcrumbItems} locale={locale} />
+  return (
+    <main className="bg-[var(--color-background)] pb-4" id="main-content">
+      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} type="application/ld+json" />
 
-      <section className="mt-6 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white">
-        <div className="relative h-[240px] bg-slate-100 sm:h-[280px] lg:h-[320px]">
-          {category.image?.url ? (
-            <Image
-              alt={category.image.alt || category.name}
-              className="object-cover object-center"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 1200px"
-              src={category.image.url}
-            />
-          ) : null}
-        </div>
-        <div className="space-y-3 p-5 sm:p-6">
-          <h1 className="text-3xl font-bold">{category.name}</h1>
-          {category.shortDescription ? <p className="max-w-3xl text-[var(--color-text-muted)]">{category.shortDescription}</p> : null}
-          <p className="text-sm text-[var(--color-text-muted)]">{t(locale, 'catalogue.productsCount', { count: formatNumber(listing.totalDocs, locale) })}</p>
-        </div>
-      </section>
+      <CategoryHeader breadcrumbs={breadcrumbs} category={category} locale={locale} productCount={categoryTotal} />
 
-      {children.length > 0 ? (
-        <section className="mt-8">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Sous-categories</h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">Affinez votre recherche a partir des familles liees.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {children.map((child) => (
-              <CategoryCard category={child} key={String(child.id)} locale={locale} variant="compact" />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-[17rem_1fr]">
-        <aside>
-          <div className="lg:hidden">
-            <CatalogueFilters brands={brands} locale={locale} params={resolvedParams} path={`/${locale}/c/${category.slug}`} totalDocs={listing.totalDocs} variant="mobile" />
-          </div>
-          <div className="hidden lg:block">
-            <CatalogueFilters brands={brands} locale={locale} params={resolvedParams} path={`/${locale}/c/${category.slug}`} totalDocs={listing.totalDocs} variant="desktop" />
-          </div>
+      <div className="container-catalog mt-5 grid min-w-0 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside aria-label="Filtres des produits" className="hidden lg:block">
+          {categoryTotal > 0 ? <CatalogueFilters {...filterProps} variant="desktop" /> : null}
         </aside>
 
-        <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Produits de la categorie</h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">Triez et filtrez les references disponibles selon vos besoins.</p>
-          </div>
+        <section aria-label={`Produits : ${category.name}`} className="min-w-0">
+          <CartStatusNotice locale={locale} params={rawParams} />
 
-          {listing.products.length > 0 ? (
+          {categoryTotal > 0 ? (
             <>
-              <ProductGrid locale={locale} products={listing.products} />
-              <Pagination page={listing.page} pathname={`/${locale}/c/${category.slug}`} searchParams={resolvedParams} totalPages={listing.totalPages} />
+              <div className="mb-3">
+                <CategorySearch categoryName={category.name} key={listingParams.q ?? ''} params={listingParams} path={path} />
+              </div>
+              <CatalogueToolbar
+                activeFilters={activeFilters}
+                clearHref={clearHref}
+                defaultPageSize={CATEGORY_DEFAULT_PAGE_SIZE}
+                defaultSort={CATEGORY_DEFAULT_SORT}
+                filterProps={filterProps}
+                page={listing.page}
+                pageSize={pageSize}
+                params={listingParams}
+                path={path}
+                sortOptions={CATEGORY_SORT_OPTIONS}
+                totalDocs={listing.totalDocs}
+              />
             </>
-          ) : (
-            <EmptyState
-              actionHref={`/${locale}/boutique`}
-              actionLabel="Voir la boutique"
-              description="Aucun produit n&apos;est disponible dans cette categorie pour le moment."
-              title="Aucun produit pour l'instant"
-            />
-          )}
+          ) : null}
+
+          {results}
         </section>
       </div>
 
       {relatedCategories.length > 0 ? (
-        <section className="mt-10">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Categories liees</h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">D&apos;autres univers proches a explorer sur Amous.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section aria-labelledby="related-categories-title" className="container-catalog mt-12">
+          <h2 className="text-lg font-bold text-[var(--color-navy)] sm:text-xl" id="related-categories-title">
+            Catégories liées
+          </h2>
+          <ul className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4" role="list">
             {relatedCategories.map((relatedCategory) => (
-              <CategoryCard category={relatedCategory} key={String(relatedCategory.id)} locale={locale} variant="compact" />
+              <li className="min-w-0" key={String(relatedCategory.id)}>
+                <CategoryCard category={relatedCategory} locale={locale} variant="compact" />
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       ) : null}
     </main>

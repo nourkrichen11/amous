@@ -49,3 +49,10 @@ export function parsePageSize(value?: string): number {
   const parsed = Number(value)
   return [12, 24, 48].includes(parsed) ? parsed : 12
 }
+
+/** One-shot flags (add-to-cart feedback) that must not leak into filter, sort or pagination links. */
+const TRANSIENT_PARAMS = ['cart', 'cartError']
+
+export function withoutTransientParams(params: ResolvedSearchParams): ResolvedSearchParams {
+  return Object.fromEntries(Object.entries(params).filter(([key]) => !TRANSIENT_PARAMS.includes(key)))
+}

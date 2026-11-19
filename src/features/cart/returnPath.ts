@@ -5,7 +5,7 @@
  */
 export function resolveCartReturnPath(sourcePath: string, fallback: string): string {
   const candidate = sourcePath.trim()
-  return candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.startsWith('/\') ? candidate : fallback
+  return candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.startsWith('/\\') ? candidate : fallback
 }
 
 export function withCartStatus(path: string, status: { cart?: string; cartError?: string }): string {

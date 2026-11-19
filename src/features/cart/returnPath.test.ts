@@ -7,6 +7,7 @@ describe('cart return path', () => {
     expect(resolveCartReturnPath('/fr/c/outillage?brand=bosch', '/fr/panier')).toBe('/fr/c/outillage?brand=bosch')
     expect(resolveCartReturnPath('https://evil.example', '/fr/panier')).toBe('/fr/panier')
     expect(resolveCartReturnPath('//evil.example', '/fr/panier')).toBe('/fr/panier')
+    expect(resolveCartReturnPath(String.raw`/\evil.example`, '/fr/panier')).toBe('/fr/panier')
     expect(resolveCartReturnPath('', '/fr/panier')).toBe('/fr/panier')
   })
 

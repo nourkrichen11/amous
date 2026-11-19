@@ -276,7 +276,7 @@ async function getDirectChildIds(locale: Locale, parentIds: ID[]): Promise<Map<I
     limit: 500,
     locale,
     pagination: false,
-    where: { parent: { in: parentIds } }
+    where: { and: [{ parent: { in: parentIds } }, { active: { equals: true } }] }
   })
 
   ;(result.docs as Array<{ id: ID; parent?: ID | { id: ID } | null }>).forEach((doc) => {
@@ -299,6 +299,37 @@ export async function getCategoryScopeIds(locale: Locale, categoryId: ID): Promi
   } catch {
     return [categoryId]
   }
+}
+
+/** Published direct subcategories of a category, in display order. */
+export async function getActiveSubcategories(locale: Locale, parentId: ID): Promise<Array<{ id: ID; name: string; slug: string }>> {
+  return cacheWithKey(
+    ['active-subcategories', locale, String(parentId)],
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'categories',
+          depth: 0,
+          limit: 200,
+          locale,
+          pagination: false,
+          sort: 'displayOrder',
+          where: { and: [{ parent: { equals: parentId } }, { active: { equals: true } }] }
+        })
+
+        return (result.docs as CategoryDoc[])
+          .filter((doc) => doc.name && doc.slug)
+          .map((doc) => ({ id: doc.id, name: doc.name as string, slug: doc.slug as string }))
+      } catch {
+        return []
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.categories,
+      tags: [STOREFRONT_TAGS.categories]
+    }
+  )
 }
 
 async function getProductCountByCategoryIds(locale: Locale, categoryIds: ID[]) {
@@ -1068,6 +1099,8 @@ export async function searchProducts(locale: Locale, rawQuery: string): Promise<
 
 export type CategoryListingFacets = {
   brands: Array<BrandItem & { count: number }>
+  /** Product count per category id within the scope (used for subcategory options). */
+  categoryCounts: Record<string, number>
   price?: { max: number; min: number }
   stock: Record<ProductItem['stockStatus'], number>
 }
@@ -1077,7 +1110,7 @@ export type CategoryListingFacets = {
  * the price span, and stock-status counts. Reads only three columns of published products.
  */
 export async function getCategoryListingFacets(locale: Locale, categoryIds: ID[]): Promise<CategoryListingFacets> {
-  const empty: CategoryListingFacets = { brands: [], stock: { in_stock: 0, low_stock: 0, out_of_stock: 0 } }
+  const empty: CategoryListingFacets = { brands: [], categoryCounts: {}, stock: { in_stock: 0, low_stock: 0, out_of_stock: 0 } }
 
   if (categoryIds.length === 0) {
     return empty
@@ -1094,19 +1127,25 @@ export async function getCategoryListingFacets(locale: Locale, categoryIds: ID[]
             depth: 0,
             locale,
             pagination: false,
-            select: { brand: true, publicPrice: true, stockStatus: true },
+            select: { brand: true, category: true, publicPrice: true, stockStatus: true },
             where: { and: [PUBLISHED_PRODUCT, { category: { in: categoryIds } }] }
           }),
           getBrands(locale)
         ])
 
         const brandCounts = new Map<string, number>()
+        const categoryCounts: Record<string, number> = {}
         const stock = { ...empty.stock }
         let min = Number.POSITIVE_INFINITY
         let max = 0
 
-        ;(productsResult.docs as Array<{ brand?: ID | { id: ID } | null; publicPrice?: number; stockStatus?: ProductItem['stockStatus'] }>).forEach((doc) => {
+        type FacetDoc = { brand?: ID | { id: ID } | null; category?: ID | { id: ID } | null; publicPrice?: number; stockStatus?: ProductItem['stockStatus'] }
+        ;(productsResult.docs as FacetDoc[]).forEach((doc) => {
           const brandId = typeof doc.brand === 'object' && doc.brand ? doc.brand.id : doc.brand
+          const categoryId = typeof doc.category === 'object' && doc.category ? doc.category.id : doc.category
+          if (categoryId !== undefined && categoryId !== null) {
+            categoryCounts[String(categoryId)] = (categoryCounts[String(categoryId)] ?? 0) + 1
+          }
           if (brandId !== undefined && brandId !== null) {
             brandCounts.set(String(brandId), (brandCounts.get(String(brandId)) ?? 0) + 1)
           }
@@ -1123,6 +1162,7 @@ export async function getCategoryListingFacets(locale: Locale, categoryIds: ID[]
           brands: brands
             .filter((brand) => brandCounts.has(String(brand.id)))
             .map((brand) => ({ ...brand, count: brandCounts.get(String(brand.id)) ?? 0 })),
+          categoryCounts,
           price: Number.isFinite(min) ? { max, min } : undefined,
           stock
         }
