@@ -33,20 +33,20 @@ function visiblePages(page: number, totalPages: number): Array<number | 'ellipsi
 export function Pagination({ page, pathname, searchParams, totalPages }: PaginationProps) {
   if (totalPages <= 1) return null
 
-  const controlClass = 'inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-[var(--color-border)] bg-white px-3 text-sm font-semibold hover:border-[#1d4ed8] hover:text-[#1d4ed8]'
+  const controlClass = 'inline-flex min-h-10 min-w-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:border-[var(--color-navy)] hover:text-[var(--color-navy)]'
 
   return (
-    <nav aria-label="Pagination" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+    <nav aria-label="Pagination" className="mt-8 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
       {page > 1 ? (
-        <Link aria-label="Page précédente" className={controlClass} href={pageHref(pathname, searchParams, page - 1)}>
-          <ChevronLeft aria-hidden="true" size={17} />
+        <Link aria-label="Page précédente" className={controlClass} href={pageHref(pathname, searchParams, page - 1)} rel="prev">
+          <ChevronLeft aria-hidden="true" className="rtl:rotate-180" size={17} />
         </Link>
       ) : null}
       {visiblePages(page, totalPages).map((entry) =>
         typeof entry === 'number' ? (
           <Link
             aria-current={entry === page ? 'page' : undefined}
-            className={`${controlClass} aria-[current=page]:border-[#1d4ed8] aria-[current=page]:bg-[#1d4ed8] aria-[current=page]:text-white`}
+            className={`${controlClass} aria-[current=page]:border-[var(--color-navy)] aria-[current=page]:bg-[var(--color-navy)] aria-[current=page]:text-white`}
             href={pageHref(pathname, searchParams, entry)}
             key={entry}
           >
@@ -55,8 +55,8 @@ export function Pagination({ page, pathname, searchParams, totalPages }: Paginat
         ) : <span aria-hidden="true" className="px-1 text-slate-400" key={entry}>…</span>
       )}
       {page < totalPages ? (
-        <Link aria-label="Page suivante" className={controlClass} href={pageHref(pathname, searchParams, page + 1)}>
-          <ChevronRight aria-hidden="true" size={17} />
+        <Link aria-label="Page suivante" className={controlClass} href={pageHref(pathname, searchParams, page + 1)} rel="next">
+          <ChevronRight aria-hidden="true" className="rtl:rotate-180" size={17} />
         </Link>
       ) : null}
     </nav>

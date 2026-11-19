@@ -47,7 +47,7 @@ describe('ProductCard', () => {
   it('renders a clean fallback when the product has no image', () => {
     render(<ProductCard locale="fr" product={product} />)
 
-    expect(screen.getByRole('img', { hidden: true, name: 'Perceuse Bosch 650 W' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { hidden: true, name: 'Perceuse Bosch 650 W — photo non disponible' })).toBeInTheDocument()
   })
 
   it('links to the product page instead of adding to cart when out of stock', () => {

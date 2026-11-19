@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import { ImageOff } from 'lucide-react'
 
 import type { MediaItem } from '@/features/catalogue/types'
 import { cn } from '@/lib/utils/cn'
@@ -17,17 +16,19 @@ type ProductImageFallbackProps = {
   name: string
 }
 
-/** Neutral placeholder used whenever a product has no usable image. */
+/** AMOUS-branded placeholder used whenever a product has no usable image. */
 export function ProductImageFallback({ className, name }: ProductImageFallbackProps) {
   return (
     <div
-      aria-label={name}
-      className={cn('flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--color-image-well)] text-slate-400', className)}
+      aria-label={`${name} — photo non disponible`}
+      className={cn('flex h-full w-full flex-col items-center justify-center gap-2.5 bg-[var(--color-image-well)]', className)}
       role="img"
     >
-      <ImageOff aria-hidden="true" size={28} strokeWidth={1.5} />
-      <span aria-hidden="true" className="text-[11px] font-medium uppercase tracking-wide">
-        Image indisponible
+      <span aria-hidden="true" className="relative block h-12 w-16 overflow-hidden rounded-[var(--radius-md)] bg-[var(--color-navy)] opacity-90">
+        <Image alt="" className="scale-[1.9] object-contain" fill sizes="64px" src="/logo2.jpg" />
+      </span>
+      <span aria-hidden="true" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        Photo à venir
       </span>
     </div>
   )
