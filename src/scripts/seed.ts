@@ -5,6 +5,20 @@ import { getPayload } from 'payload'
 loadEnv({ path: '.env.local', quiet: true })
 loadEnv({ quiet: true })
 
+/**
+ * This script writes/overwrites catalogue, homepage and (if absent) an
+ * admin account. It must never run against a real production database by
+ * accident — NODE_ENV=production blocks it unless an operator deliberately
+ * opts in with ALLOW_SEED=true.
+ */
+function assertSeedIsAllowed() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
+    throw new Error(
+      'Refusing to run seed.ts: NODE_ENV=production. If you deliberately need to seed this environment, set ALLOW_SEED=true.'
+    )
+  }
+}
+
 type SeedCategory = {
   ar: {
     description: string
@@ -337,7 +351,7 @@ const mediaAssets = {
   logo: {
     altAr: 'شعار أموس',
     altFr: 'Logo Amous',
-    filePath: path.resolve('public/logo2.png'),
+    filePath: path.resolve('public/logo2.jpg'),
     source: 'local-placeholder'
   }
 } satisfies Record<'hero' | 'logo', SeedMediaAsset>
@@ -669,6 +683,8 @@ async function upsertHeroSlide(payload: Awaited<ReturnType<typeof getPayload>>, 
 }
 
 async function seed() {
+  assertSeedIsAllowed()
+
   const { default: configPromise } = await import('@payload-config')
   const payload = await getPayload({ config: configPromise })
   const categoryIds = new Map<string, string | number>()
@@ -677,7 +693,7 @@ async function seed() {
   const logoMedia = await upsertMediaAsset(payload, mediaAssets.logo)
   const heroMedia = await upsertMediaAsset(payload, mediaAssets.hero)
 
-  const adminEmail = 'admin@amous.local'
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@amous.local'
   const existingAdmin = await payload.find({
     collection: 'users',
     limit: 1,
@@ -686,13 +702,18 @@ async function seed() {
   })
 
   if (!existingAdmin.docs[0]) {
+    if (!process.env.SEED_ADMIN_PASSWORD) {
+      throw new Error('SEED_ADMIN_PASSWORD is required to create the seed admin account. Set it in .env.local (never logged).')
+    }
+
     await payload.create({
       collection: 'users',
       data: {
         active: true,
         email: adminEmail,
-        name: 'Amous Admin',
-        password: 'ChangeMe123!',
+        firstName: 'Amous',
+        lastName: 'Admin',
+        password: process.env.SEED_ADMIN_PASSWORD,
         preferredLocale: 'fr',
         role: 'admin'
       },
@@ -867,7 +888,7 @@ async function seed() {
     slug: 'delivery-config'
   })
 
-  console.log(`Seed complete. Admin: ${adminEmail} / ChangeMe123!`)
+  console.log(`Seed complete. Admin account ready: ${adminEmail} (password not logged).`)
 }
 
 seed().catch((error: unknown) => {

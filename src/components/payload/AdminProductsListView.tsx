@@ -1,12 +1,15 @@
 import type { ListViewServerProps } from 'payload'
 
 import Link from 'next/link'
-import { Columns3, Package, Pencil, Plus, Search, SlidersHorizontal, X } from 'lucide-react'
+import { Columns3, EllipsisVertical, Package, Plus, Search, SlidersHorizontal, X } from 'lucide-react'
 
+import { AdminAutoSubmitForm } from '@/components/admin/AdminAutoSubmitForm'
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState'
 import { AdminListToolbar } from '@/components/admin/AdminListToolbar'
+import { buildFilterHref, compactQuery, queryValue, queryValues, sortDirection } from '@/components/admin/adminListViewHelpers'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { AdminPagination } from '@/components/admin/AdminPagination'
+import { AdminProductSelectionShell } from '@/components/admin/AdminProductSelectionShell'
 import { Money } from '@/components/admin/Money'
 import { ProductCell } from '@/components/admin/ProductCell'
 import { StatusBadge } from '@/components/admin/StatusBadge'
@@ -34,6 +37,7 @@ type ProductDoc = {
   > | null
   manufacturerReference?: null | string
   name?: null | string
+  slug?: null | string
   publicPrice?: null | number
   reservedStock?: null | number
   sku?: null | string
@@ -102,68 +106,8 @@ function activeLabel(active?: boolean | null) {
   return active === false ? 'Inactif' : 'Actif'
 }
 
-function queryValue(searchParams: ListViewServerProps['searchParams'], key: string) {
-  const value = searchParams?.[key]
-
-  if (Array.isArray(value)) {
-    return value[0] || ''
-  }
-
-  return value || ''
-}
-
-function queryValues(searchParams: ListViewServerProps['searchParams'], key: string) {
-  const value = searchParams?.[key]
-
-  if (Array.isArray(value)) {
-    return value.filter(Boolean)
-  }
-
-  return value ? [value] : []
-}
-
-function compactQuery(searchParams: ListViewServerProps['searchParams']) {
-  if (!searchParams) {
-    return {}
-  }
-
-  const entries = Object.entries(searchParams).filter(([key]) => key !== 'page' && key !== 'limit')
-  return Object.fromEntries(entries)
-}
-
-function buildFilterHref({
-  basePath,
-  omit,
-  searchParams
-}: {
-  basePath: string
-  omit: string[]
-  searchParams: ListViewServerProps['searchParams']
-}) {
-  const params = new URLSearchParams()
-
-  Object.entries(searchParams || {}).forEach(([key, value]) => {
-    if (key === 'page' || omit.includes(key)) {
-      return
-    }
-
-    if (Array.isArray(value)) {
-      value.forEach((entry) => {
-        if (entry) {
-          params.append(key, entry)
-        }
-      })
-      return
-    }
-
-    if (value) {
-      params.set(key, value)
-    }
-  })
-
-  const query = params.toString()
-
-  return query ? `${basePath}?${query}` : basePath
+function productURL(product: ProductDoc) {
+  return product.slug ? `/fr/produits/${product.slug}` : null
 }
 
 function filterOptions(result: unknown) {
@@ -184,18 +128,6 @@ function filterOptions(result: unknown) {
 
     return [{ id, name: 'name' in doc && typeof doc.name === 'string' ? doc.name : null }]
   })
-}
-
-function sortDirection(sort: string, field: string) {
-  if (sort === field) {
-    return 'ascending' as const
-  }
-
-  if (sort === `-${field}`) {
-    return 'descending' as const
-  }
-
-  return undefined
 }
 
 function sortIndicator(sort: string, field: string) {
@@ -230,7 +162,7 @@ export async function AdminProductsListView(props: ListViewServerProps) {
   const displayValues = queryValues(props.searchParams, 'display')
   const hasColumnPreferences = displayValues.length > 0
   const showCategory = !hasColumnPreferences || displayValues.includes('category')
-  const showBrand = !hasColumnPreferences || displayValues.includes('brand')
+  const showBrand = hasColumnPreferences && displayValues.includes('brand')
   const basePath = '/admin/collections/products'
   const hasFilters = Boolean(searchValue || stockValue || statusValue || categoryValue || brandValue)
   const [categoriesResult, brandsResult, totalProductsResult] = await Promise.all([
@@ -274,8 +206,7 @@ export async function AdminProductsListView(props: ListViewServerProps) {
             </Link>
           ) : null
         }
-        eyebrow="Catalogue / Produits"
-        description="Gérez vos produits, prix et niveaux de stock."
+        description="Gérez le catalogue, les prix et les niveaux de stock."
         title="Produits"
       />
 
@@ -340,38 +271,47 @@ export async function AdminProductsListView(props: ListViewServerProps) {
           ) : null
         }
       >
-        <form action={basePath} className="amous-filter-form" method="get">
+        <AdminAutoSubmitForm action={basePath}>
           <label className="amous-search-input">
             <Search aria-hidden="true" size={16} />
-            <input defaultValue={searchValue} name="where[or][0][name][like]" placeholder="Rechercher par nom, SKU..." type="search" />
+            <input defaultValue={searchValue} name="where[or][0][name][like]" placeholder="Rechercher un produit, SKU..." type="search" />
           </label>
           <input name="where[or][1][sku][like]" type="hidden" value={searchValue} />
           <input name="where[or][2][manufacturerReference][like]" type="hidden" value={searchValue} />
-          <select aria-label="Filtrer par stock" defaultValue={stockValue} name="where[stockStatus][equals]">
-            <option value="">Stock</option>
-            <option value="in_stock">En stock</option>
-            <option value="low_stock">Stock faible</option>
-            <option value="out_of_stock">Rupture</option>
-          </select>
-          <select aria-label="Filtrer par statut" defaultValue={statusValue} name="where[active][equals]">
-            <option value="">Statut</option>
-            <option value="true">Actif</option>
-            <option value="false">Inactif</option>
-          </select>
-          <select aria-label="Filtrer par categorie" defaultValue={categoryValue} name="where[category][equals]">
-            <option value="">Catégorie</option>
-            {categories.map((category) => (
-              <option key={category.id} value={String(category.id)}>
-                {category.name || '\u2014'}
-              </option>
-            ))}
-          </select>
           <details className="amous-more-filters">
             <summary>
               <SlidersHorizontal aria-hidden="true" size={16} />
-              Plus de filtres
+              Filtres
             </summary>
             <div className="amous-more-filters__menu">
+              <label>
+                <span>Stock</span>
+                <select aria-label="Filtrer par stock" defaultValue={stockValue} name="where[stockStatus][equals]">
+                  <option value="">Tous</option>
+                  <option value="in_stock">En stock</option>
+                  <option value="low_stock">Stock faible</option>
+                  <option value="out_of_stock">Rupture</option>
+                </select>
+              </label>
+              <label>
+                <span>Statut</span>
+                <select aria-label="Filtrer par statut" defaultValue={statusValue} name="where[active][equals]">
+                  <option value="">Tous</option>
+                  <option value="true">Actif</option>
+                  <option value="false">Inactif</option>
+                </select>
+              </label>
+              <label>
+                <span>Catégorie</span>
+                <select aria-label="Filtrer par catégorie" defaultValue={categoryValue} name="where[category][equals]">
+                  <option value="">Toutes les catégories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={String(category.id)}>
+                      {category.name || '\u2014'}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label>
                 <span>Marque</span>
                 <select aria-label="Filtrer par marque" defaultValue={brandValue} name="where[brand][equals]">
@@ -383,23 +323,24 @@ export async function AdminProductsListView(props: ListViewServerProps) {
                   ))}
                 </select>
               </label>
-            </div>
-          </details>
-          <details className="amous-column-picker">
-            <summary>
-              <Columns3 aria-hidden="true" size={16} />
-              Colonnes
-            </summary>
-            <div className="amous-column-picker__menu">
-              <input name="display" type="hidden" value="none" />
-              <label>
-                <input defaultChecked={showCategory} name="display" type="checkbox" value="category" />
-                <span>Catégorie</span>
-              </label>
-              <label>
-                <input defaultChecked={showBrand} name="display" type="checkbox" value="brand" />
-                <span>Marque</span>
-              </label>
+              <div className="amous-more-filters__price-grid">
+                <label>
+                  <span>Prix min.</span>
+                  <input aria-label="Prix minimum" disabled placeholder="Bientôt" type="text" />
+                </label>
+                <label>
+                  <span>Prix max.</span>
+                  <input aria-label="Prix maximum" disabled placeholder="Bientôt" type="text" />
+                </label>
+              </div>
+              <div className="amous-more-filters__actions">
+                <Link className="amous-admin-button amous-admin-button--secondary" href={basePath}>
+                  Réinitialiser
+                </Link>
+                <button className="amous-admin-button amous-admin-button--primary" type="submit">
+                  Appliquer
+                </button>
+              </div>
             </div>
           </details>
           <div className="amous-filter-form__utilities">
@@ -413,11 +354,25 @@ export async function AdminProductsListView(props: ListViewServerProps) {
               <option value="-stockQuantity">Stock: d&eacute;croissant</option>
               <option value="-updatedAt">Modifiés récemment</option>
             </select>
-            <button className="amous-admin-button amous-admin-button--secondary" type="submit">
-              Appliquer
-            </button>
+            <details className="amous-column-picker">
+              <summary>
+                <Columns3 aria-hidden="true" size={16} />
+                Colonnes
+              </summary>
+              <div className="amous-column-picker__menu">
+                <input name="display" type="hidden" value="none" />
+                <label>
+                  <input defaultChecked={showCategory} name="display" type="checkbox" value="category" />
+                  <span>Catégorie</span>
+                </label>
+                <label>
+                  <input defaultChecked={showBrand} name="display" type="checkbox" value="brand" />
+                  <span>Marque</span>
+                </label>
+              </div>
+            </details>
           </div>
-        </form>
+        </AdminAutoSubmitForm>
       </AdminListToolbar>
 
       {products.length ? (
@@ -425,9 +380,11 @@ export async function AdminProductsListView(props: ListViewServerProps) {
           <div className="amous-products-table__summary" role="status">
             {resultCount}
           </div>
+          <AdminProductSelectionShell>
           <div className="amous-table-wrap">
             <table className="amous-table amous-products-table">
               <colgroup>
+                <col className="amous-products-table__select-column" />
                 <col className="amous-products-table__product-column" />
                 <col className="amous-products-table__sku-column" />
                 {showCategory ? <col className="amous-products-table__category-column" /> : null}
@@ -439,6 +396,9 @@ export async function AdminProductsListView(props: ListViewServerProps) {
               </colgroup>
               <thead>
                 <tr>
+                  <th className="amous-products-table__select-column">
+                    <input aria-label="Sélectionner tous les produits" name="productSelectionAll" type="checkbox" />
+                  </th>
                   <th aria-sort={sortDirection(sortValue, 'name')}>Produit {sortIndicator(sortValue, 'name')}</th>
                   <th className="amous-products-table__sku-column">SKU</th>
                   {showCategory ? <th className="amous-products-table__category-column">Catégorie</th> : null}
@@ -459,14 +419,21 @@ export async function AdminProductsListView(props: ListViewServerProps) {
                           reservedStock: typeof product.reservedStock === 'number' ? product.reservedStock : 0,
                           stockQuantity: typeof product.stockQuantity === 'number' ? product.stockQuantity : 0
                         })
+                  const brandLabel = relatedLabel(product.brand, brands)
+                  const categoryLabel = relatedLabel(product.category, categories)
+                  const storeURL = productURL(product)
 
                   return (
                     <tr key={id}>
+                      <td className="amous-products-table__select-column">
+                        <input aria-label={`Sélectionner ${stringValue(product.name) || 'ce produit'}`} name="productSelection" type="checkbox" value={id} />
+                      </td>
                       <td className="amous-products-table__product" data-label="Produit">
                         <ProductCell
                           href={`${basePath}/${id}`}
                           imageAlt={stringValue(product.name)}
                           imageURL={imageURL(product)}
+                          meta={brandLabel !== '\u2014' ? brandLabel : stringValue(product.sku)}
                           name={stringValue(product.name) || 'Produit'}
                         />
                       </td>
@@ -475,15 +442,15 @@ export async function AdminProductsListView(props: ListViewServerProps) {
                       </td>
                       {showCategory ? (
                         <td className="amous-products-table__category-column" data-label="Categorie">
-                          <span className={relatedLabel(product.category, categories) === '\u2014' ? 'amous-empty-value' : undefined}>
-                            {relatedLabel(product.category, categories)}
+                          <span className={categoryLabel === '\u2014' ? 'amous-empty-value' : undefined}>
+                            {categoryLabel}
                           </span>
                         </td>
                       ) : null}
                       {showBrand ? (
                         <td className="amous-products-table__brand-column" data-label="Marque">
-                          <span className={relatedLabel(product.brand, brands) === '\u2014' ? 'amous-empty-value' : undefined}>
-                            {relatedLabel(product.brand, brands)}
+                          <span className={brandLabel === '\u2014' ? 'amous-empty-value' : undefined}>
+                            {brandLabel}
                           </span>
                         </td>
                       ) : null}
@@ -494,19 +461,27 @@ export async function AdminProductsListView(props: ListViewServerProps) {
                         <span className={`amous-stock-value amous-stock-value--${product.stockStatus || 'in_stock'}`}>
                           {availableStock}
                         </span>
-                        {product.stockStatus === 'low_stock' || product.stockStatus === 'out_of_stock' ? (
-                          <span className={`amous-stock-note amous-stock-note--${product.stockStatus}`}>
-                            {stockLabel(product.stockStatus)}
-                          </span>
-                        ) : null}
+                        <span className={`amous-stock-note amous-stock-note--${product.stockStatus || 'in_stock'}`}>
+                          {stockLabel(product.stockStatus)}
+                        </span>
                       </td>
                       <td className="amous-products-table__status" data-label="Statut">
-                        <StatusBadge variant={product.active === false ? 'neutral' : 'info'}>{activeLabel(product.active)}</StatusBadge>
+                        <StatusBadge variant={product.active === false ? 'neutral' : 'success'}>{activeLabel(product.active)}</StatusBadge>
                       </td>
                       <td className="amous-products-table__actions is-right" data-label="Actions">
-                        <Link aria-label={`Modifier ${stringValue(product.name) || 'le produit'}`} className="amous-table-icon-action" href={`${basePath}/${id}`} title="Modifier">
-                          <Pencil aria-hidden="true" size={16} />
-                        </Link>
+                        <details className="amous-row-actions">
+                          <summary aria-label={`Actions pour ${stringValue(product.name) || 'ce produit'}`}>
+                            <EllipsisVertical aria-hidden="true" size={16} />
+                          </summary>
+                          <div className="amous-row-actions__menu">
+                            <Link href={`${basePath}/${id}`}>Modifier</Link>
+                            {storeURL ? <Link href={storeURL}>Voir le produit</Link> : null}
+                            <button disabled type="button">Dupliquer</button>
+                            <button disabled type="button">Modifier le stock</button>
+                            <button disabled type="button">{product.active === false ? 'Activer' : 'Désactiver'}</button>
+                            <button className="is-danger" disabled type="button">Supprimer</button>
+                          </div>
+                        </details>
                       </td>
                     </tr>
                   )
@@ -514,6 +489,7 @@ export async function AdminProductsListView(props: ListViewServerProps) {
               </tbody>
             </table>
           </div>
+          </AdminProductSelectionShell>
           <AdminPagination
             basePath={basePath}
             currentPage={currentPage}
@@ -545,3 +521,4 @@ export async function AdminProductsListView(props: ListViewServerProps) {
     </main>
   )
 }
+

@@ -6,6 +6,7 @@ import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const DeliveryConfig: GlobalConfig = {
   slug: 'delivery-config',
+  label: 'Livraison',
   admin: {
     group: 'Livraison'
   },

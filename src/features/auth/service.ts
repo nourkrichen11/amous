@@ -3,6 +3,9 @@ import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
 import { generatePayloadCookie } from 'payload'
 
 import type { Locale } from '@/i18n/config'
+import { sendPasswordResetEmail } from '@/lib/email'
+import { getPublicSiteUrl } from '@/lib/env'
+import { createAuditLog } from '@/lib/audit'
 import { getPayloadClient } from '@/lib/payload/getPayload'
 
 import type { AddressInput, AuthResult, AuthUser, AuthUserSummary } from './types'
@@ -288,7 +291,7 @@ export async function loginAdmin(input: { email: string; password: string }): Pr
   }
 }
 
-export async function requestPasswordReset(input: { email: string }) {
+export async function requestPasswordReset(input: { email: string; locale: Locale }) {
   const parsed = forgotPasswordSchema.safeParse(input)
 
   if (!parsed.success) {
@@ -299,7 +302,9 @@ export async function requestPasswordReset(input: { email: string }) {
 
   try {
     const payload = await getPayloadClient()
-    await payload.forgotPassword({
+    // Returns the raw token, or null if no user matched — never branch on
+    // that difference below, or this becomes an email-enumeration oracle.
+    const token = await payload.forgotPassword({
       collection: 'users',
       data: {
         email: normalizeEmail(parsed.data.email)
@@ -307,6 +312,15 @@ export async function requestPasswordReset(input: { email: string }) {
       disableEmail: true,
       expiration: 45 * 60 * 1000
     })
+
+    if (token) {
+      const resetUrl = `${getPublicSiteUrl()}/${input.locale}/reinitialiser-mot-de-passe?token=${token}`
+      // Never let email delivery failure change the response, and never log
+      // the token itself — only that a send attempt failed.
+      await sendPasswordResetEmail({ locale: input.locale, resetUrl, to: normalizeEmail(parsed.data.email) }).catch((error) => {
+        console.error('[auth] failed to send password reset email', error instanceof Error ? error.message : error)
+      })
+    }
   } catch {
     // Keep generic response to prevent enumeration.
   }
@@ -329,14 +343,39 @@ export async function resetPassword(input: { password: string; passwordConfirmat
 
   try {
     const payload = await getPayloadClient()
-    await payload.resetPassword({
+    const result = (await payload.resetPassword({
       collection: 'users',
       data: {
         password: parsed.data.password,
         token: parsed.data.token
       },
       overrideAccess: true
-    })
+    })) as { user?: { email?: string; id: number | string } }
+
+    // payload.resetPassword() itself appends a fresh session rather than
+    // clearing prior ones — our own flow never uses that session (it
+    // redirects to /connexion below instead of setting a cookie), so clear
+    // every session for this user, including the one it just created.
+    // Reset implies the requester had no valid session to begin with (they
+    // came in via an emailed token), so there's no "current session" to
+    // preserve the way changePassword preserves one.
+    if (result.user?.id) {
+      await payload.update({
+        collection: 'users',
+        data: { sessions: [] },
+        id: result.user.id,
+        overrideAccess: true
+      })
+
+      await createAuditLog(payload, {
+        adminId: result.user.id,
+        entityId: result.user.id,
+        entityReference: typeof result.user.email === 'string' ? result.user.email : String(result.user.id),
+        entityType: 'user',
+        event: 'password_reset_completed',
+        summary: 'Mot de passe reinitialise via le lien recu par e-mail.'
+      })
+    }
 
     return {
       ok: true,
@@ -423,7 +462,14 @@ export async function updateOwnProfile(actor: AuthUser, input: { email: string; 
   })
 }
 
-export async function changePassword(input: { confirmNewPassword: string; currentPassword: string; email: string; newPassword: string; userId: number | string }) {
+export async function changePassword(input: {
+  confirmNewPassword: string
+  currentPassword: string
+  currentSid?: string
+  email: string
+  newPassword: string
+  userId: number | string
+}) {
   const parsed = changePasswordSchema.safeParse(input)
 
   if (!parsed.success) {
@@ -462,6 +508,35 @@ export async function changePassword(input: { confirmNewPassword: string; curren
     overrideAccess: true
   })
 
+  // Revoke every OTHER session (other devices/browsers) while preserving
+  // the one the user is actively authenticated with right now — they just
+  // re-verified their current password, so there's no reason to also force
+  // them to log back in on this device. The verification payload.login()
+  // call above also appended its own throwaway session; the filter below
+  // drops that too since it isn't currentSid.
+  const fresh = (await payload.findByID({
+    collection: 'users',
+    id: input.userId,
+    overrideAccess: true
+  })) as { sessions?: Array<{ id: string }> }
+  const remainingSessions = (fresh.sessions ?? []).filter((session) => session.id === input.currentSid)
+
+  await payload.update({
+    collection: 'users',
+    data: { sessions: remainingSessions },
+    id: input.userId,
+    overrideAccess: true
+  })
+
+  await createAuditLog(payload, {
+    adminId: input.userId,
+    entityId: input.userId,
+    entityReference: input.email,
+    entityType: 'user',
+    event: 'password_changed',
+    summary: 'Mot de passe modifie depuis le compte client.'
+  })
+
   return {
     ok: true as const
   }
@@ -477,6 +552,7 @@ export async function changeOwnPassword(actor: AuthUser, input: { confirmNewPass
 
   return changePassword({
     ...input,
+    currentSid: actor.sid,
     email: actor.email,
     userId: actor.id
   })

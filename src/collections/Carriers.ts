@@ -9,6 +9,10 @@ export const Carriers: CollectionConfig = {
     group: 'Livraison',
     useAsTitle: 'name'
   },
+  labels: {
+    plural: 'Transporteurs',
+    singular: 'Transporteur'
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

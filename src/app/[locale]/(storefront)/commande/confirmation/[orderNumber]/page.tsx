@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { findOrder } from '@/features/cart/service'
 import { getDeliveryConfig } from '@/features/cart/delivery'
 import { getSiteSettings } from '@/features/catalogue/data'
+import { getCustomerOrderStatus } from '@/features/orders/status'
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs'
 import { formatTND } from '@/lib/formatting/currency'
 import { getPublicSiteUrl } from '@/lib/env'
@@ -38,7 +39,10 @@ type OrderDoc = {
     unit?: string
     unitPrice?: number
   }>
+  confirmationStatus?: string
+  fulfillmentStatus?: string
   orderNumber?: string
+  orderStatus?: string
   paymentMethod?: 'cash_on_delivery'
   status?: string
   subtotal?: number
@@ -143,7 +147,16 @@ export default async function ConfirmationPage({ params, searchParams }: Confirm
           <dl className="mt-4 grid gap-3">
             <div className="flex justify-between">
               <dt>{t(locale, 'order.status')}</dt>
-              <dd>{t(locale, `order.statusValue.${order.status}`)}</dd>
+              <dd>
+                {t(
+                  locale,
+                  `order.statusValue.${getCustomerOrderStatus({
+                    confirmationStatus: order.confirmationStatus as never,
+                    fulfillmentStatus: order.fulfillmentStatus as never,
+                    orderStatus: order.orderStatus as never
+                  })}`
+                )}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt>{t(locale, 'payment.title')}</dt>

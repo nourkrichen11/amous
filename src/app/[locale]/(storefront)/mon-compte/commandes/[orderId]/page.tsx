@@ -4,7 +4,8 @@ import { AccountLayout } from '@/components/auth/AccountLayout'
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs'
 import { getCustomerOrderByNumber } from '@/features/auth/data'
 import { requireCustomerUser } from '@/features/auth/session'
-import { isLocale } from '@/i18n/config'
+import { getCustomerOrderStatus, getPaymentStatusLabel } from '@/features/orders/status'
+import { isLocale, t } from '@/i18n/config'
 import { formatTND } from '@/lib/formatting/currency'
 
 type AccountOrderDetailPageProps = {
@@ -27,7 +28,7 @@ export default async function AccountOrderDetailPage({ params }: AccountOrderDet
       <div className="rounded-md border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-subtle)]">
         <h2 className="text-xl font-semibold">{order.orderNumber}</h2>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Statut: {order.status} - Paiement: {order.paymentStatus}
+          Statut: {t(locale, `order.statusValue.${getCustomerOrderStatus(order as never)}`)} - Paiement: {getPaymentStatusLabel(order.paymentStatus)}
         </p>
 
         <div className="mt-5 grid gap-3">

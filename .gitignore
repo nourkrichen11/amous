@@ -8,3 +8,11 @@ coverage/
 .env.*.local
 media/
 *.tsbuildinfo
+
+# Local debug/QA artifacts — never commit these (see security audit: some
+# have previously contained a signed session cookie).
+.payload-smoke-cookie.txt
+.admin-login.html
+.admin-dashboard.html
+.codex-*.log
+.layout-checks/

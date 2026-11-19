@@ -6,6 +6,7 @@ import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const Homepage: GlobalConfig = {
   slug: 'homepage',
+  label: "Page d'accueil",
   admin: {
     group: 'Contenu'
   },

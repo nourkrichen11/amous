@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { Header } from '@/components/layout/Header'
-import { getCategories, getSiteSettings } from '@/features/catalogue/data'
+import { getDeliveryConfig } from '@/features/cart/delivery'
+import { getSiteSettings } from '@/features/catalogue/data'
 import { getHeader } from '@/features/homepage/data'
 import { resolveLocaleFromParams } from '@/lib/locale/resolveLocale'
 
@@ -14,11 +15,7 @@ type StorefrontLayoutProps = {
 
 export default async function StorefrontLayout({ children, params }: StorefrontLayoutProps) {
   const locale = await resolveLocaleFromParams(params)
-  const [settings, categories, header] = await Promise.all([
-    getSiteSettings(locale),
-    getCategories(locale),
-    getHeader(locale)
-  ])
+  const [settings, header, delivery] = await Promise.all([getSiteSettings(locale), getHeader(locale), getDeliveryConfig(locale)])
 
   return (
     <>
@@ -28,7 +25,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
       <AnnouncementBar text={header.announcementText} />
       <Header data={header} locale={locale} />
       {children}
-      <Footer categories={categories} locale={locale} settings={settings} />
+      <Footer delivery={delivery} locale={locale} settings={settings} />
     </>
   )
 }

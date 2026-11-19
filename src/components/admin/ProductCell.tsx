@@ -6,10 +6,11 @@ type ProductCellProps = {
   href: string
   imageAlt?: string
   imageURL?: string | null
+  meta?: string
   name: string
 }
 
-export function ProductCell({ href, imageAlt, imageURL, name }: ProductCellProps) {
+export function ProductCell({ href, imageAlt, imageURL, meta, name }: ProductCellProps) {
   return (
     <div className="amous-product-cell">
       <span className="amous-product-cell__image">
@@ -19,6 +20,7 @@ export function ProductCell({ href, imageAlt, imageURL, name }: ProductCellProps
         <Link className="amous-product-cell__title" href={href}>
           {name}
         </Link>
+        {meta ? <span className="amous-product-cell__meta">{meta}</span> : null}
       </span>
     </div>
   )

@@ -10,6 +10,10 @@ export const DeliveryZones: CollectionConfig = {
     group: 'Livraison',
     useAsTitle: 'name'
   },
+  labels: {
+    plural: 'Zones et tarifs',
+    singular: 'Zone de livraison'
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

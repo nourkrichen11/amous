@@ -30,6 +30,12 @@ export type AuthUser = {
   phone?: string
   preferredLocale: 'fr' | 'ar'
   role: AuthRole
+  /**
+   * The current request's session id (Payload's `useSessions`, see
+   * Users.ts). Used by changePassword to revoke every *other* session while
+   * leaving the one the user is actively authenticated with alone.
+   */
+  sid?: string
 }
 
 export type AuthUserSummary = Pick<AuthUser, 'email' | 'firstName' | 'id' | 'lastName' | 'preferredLocale' | 'role'>

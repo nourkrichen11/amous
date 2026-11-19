@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import type { Locale } from '@/i18n/config'
+import { getClientIp } from '@/lib/security/getClientIp'
+import { checkRateLimit } from '@/lib/security/rateLimit'
+import { RATE_LIMIT_MESSAGE } from '@/lib/security/rateLimitResponse'
 
 import { deleteAddress, saveAddress, changeOwnPassword, loginCustomer, registerCustomer, requestPasswordReset, resetPassword, updateOwnProfile } from './service'
 import { getCurrentUser, logoutCurrentUser, requireCustomerUser } from './session'
@@ -23,8 +26,19 @@ function asLocale(value: string): Locale {
   return value === 'ar' ? 'ar' : 'fr'
 }
 
+async function isRateLimited(bucket: Parameters<typeof checkRateLimit>[0], identifier: string) {
+  const ip = await getClientIp()
+  return !checkRateLimit(bucket, `${ip}:${identifier}`).allowed
+}
+
 export async function loginAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const locale = asLocale(getValue(formData, 'locale'))
+  const email = getValue(formData, 'email').trim().toLowerCase()
+
+  if (await isRateLimited('login', email)) {
+    return { message: RATE_LIMIT_MESSAGE }
+  }
+
   const result = await loginCustomer({
     email: getValue(formData, 'email'),
     locale,
@@ -45,6 +59,11 @@ export async function loginAction(_: AuthFormState, formData: FormData): Promise
 
 export async function registerAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const locale = asLocale(getValue(formData, 'locale'))
+
+  if (await isRateLimited('register', 'global')) {
+    return { message: RATE_LIMIT_MESSAGE }
+  }
+
   const result = await registerCustomer({
     acceptTerms: getValue(formData, 'acceptTerms') === 'on',
     email: getValue(formData, 'email'),
@@ -68,8 +87,18 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
 }
 
 export async function forgotPasswordAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const locale = asLocale(getValue(formData, 'locale'))
+  const email = getValue(formData, 'email').trim().toLowerCase()
+
+  if (await isRateLimited('forgot-password', email)) {
+    // Same generic message as the real flow — rate-limiting must not be a
+    // side channel for confirming whether an account exists.
+    return { message: RATE_LIMIT_MESSAGE, ok: true }
+  }
+
   const response = await requestPasswordReset({
-    email: getValue(formData, 'email')
+    email: getValue(formData, 'email'),
+    locale
   })
 
   return {
@@ -80,6 +109,11 @@ export async function forgotPasswordAction(_: AuthFormState, formData: FormData)
 
 export async function resetPasswordAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const locale = asLocale(getValue(formData, 'locale'))
+
+  if (await isRateLimited('reset-password', 'global')) {
+    return { message: RATE_LIMIT_MESSAGE }
+  }
+
   const result = await resetPassword(
     {
       password: getValue(formData, 'password'),
@@ -128,6 +162,11 @@ export async function updateProfileAction(_: AuthFormState, formData: FormData):
 export async function changePasswordAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const locale = asLocale(getValue(formData, 'locale'))
   const user = await requireCustomerUser(locale, `/${locale}/mon-compte/securite`)
+
+  if (checkRateLimit('change-password', String(user.id)).allowed === false) {
+    return { message: RATE_LIMIT_MESSAGE }
+  }
+
   const result = await changeOwnPassword(user, {
     confirmNewPassword: getValue(formData, 'confirmNewPassword'),
     currentPassword: getValue(formData, 'currentPassword'),

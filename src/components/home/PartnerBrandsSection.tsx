@@ -14,30 +14,38 @@ type PartnerBrandsSectionProps = {
 
 export function PartnerBrandsSection({ brands, locale }: PartnerBrandsSectionProps) {
   return (
-    <HomepageSectionShell
-      subtitle="Des marques reconnues pour leur qualite et leur fiabilite."
-      title="Nos Marques Partenaires"
-    >
+    <HomepageSectionShell id="marques" subtitle="Des marques reconnues pour leur qualité et leur fiabilité." title="Nos Marques Partenaires">
       {brands.length > 0 ? (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 md:grid-cols-4 xl:grid-cols-6">
+        <ul className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-6" role="list">
           {brands.map((brand) => (
-            <Link
-              className="flex min-h-[112px] items-center justify-center rounded-md border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-subtle)] transition-colors hover:border-[var(--color-primary)]"
-              href={`/${locale}/boutique?brand=${brand.slug}`}
-              key={String(brand.id)}
-            >
-              {brand.logo?.url ? (
-                <div className="relative h-12 w-full">
-                  <Image alt={brand.logo.alt || brand.name} className="object-contain" fill sizes="160px" src={brand.logo.url} />
-                </div>
-              ) : (
-                <span className="text-center text-sm font-semibold text-[var(--color-text)]">{brand.name}</span>
-              )}
-            </Link>
+            <li className="min-w-0" key={String(brand.id)}>
+              <Link
+                aria-label={`Voir les produits ${brand.name}`}
+                className="group flex h-[76px] items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white px-3 py-3 transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[var(--shadow-hover)] sm:h-[88px] sm:px-4"
+                href={`/${locale}/boutique?brand=${encodeURIComponent(brand.slug)}`}
+                title={brand.name}
+              >
+                {brand.logo?.url ? (
+                  <span className="relative block h-9 w-full max-w-[136px] sm:h-11">
+                    <Image
+                      alt={brand.name}
+                      className="object-contain opacity-90 transition-opacity duration-200 group-hover:opacity-100"
+                      fill
+                      sizes="(max-width: 639px) 30vw, 136px"
+                      src={brand.logo.url}
+                    />
+                  </span>
+                ) : (
+                  <span className="line-clamp-2 break-words text-center text-sm font-extrabold uppercase leading-tight tracking-wide text-[var(--color-navy)] sm:text-[15px]">
+                    {brand.name}
+                  </span>
+                )}
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
-        <EmptyState actionHref={`/${locale}/boutique`} actionLabel="Voir la boutique" description="Les marques partenaires seront affichees ici lorsqu'elles seront disponibles." title="Aucune marque disponible" />
+        <EmptyState actionHref={`/${locale}/boutique`} actionLabel="Voir la boutique" description="Les marques partenaires seront affichées ici lorsqu'elles seront disponibles." title="Aucune marque disponible" />
       )}
     </HomepageSectionShell>
   )

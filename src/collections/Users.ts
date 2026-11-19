@@ -1,8 +1,42 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionAfterChangeHook, CollectionConfig } from 'payload'
 
 import { isAdmin, isAdminBoolean, isAdminField, isAdminOrSameUserField, isAdminOrSelf } from '@/access/isAdmin'
 import { normalizeCountry } from '@/lib/address'
+import { createAuditLog } from '@/lib/audit'
 import { normalizePhone } from '@/lib/phone'
+
+const auditSecurityRelevantUserChange: CollectionAfterChangeHook = async ({ doc, operation, previousDoc, req }) => {
+  if (operation !== 'update') {
+    return doc
+  }
+
+  if (previousDoc?.role !== doc.role) {
+    await createAuditLog(req.payload, {
+      adminId: req.user?.id,
+      entityId: doc.id,
+      entityReference: doc.email || String(doc.id),
+      entityType: 'user',
+      event: 'user_role_changed',
+      metadata: { from: previousDoc?.role, to: doc.role },
+      req,
+      summary: `Role modifie: ${previousDoc?.role ?? 'inconnu'} -> ${doc.role}`
+    })
+  }
+
+  if (previousDoc?.active !== doc.active) {
+    await createAuditLog(req.payload, {
+      adminId: req.user?.id,
+      entityId: doc.id,
+      entityReference: doc.email || String(doc.id),
+      entityType: 'user',
+      event: doc.active === false ? 'user_disabled' : 'user_enabled',
+      req,
+      summary: doc.active === false ? 'Compte desactive' : 'Compte reactive'
+    })
+  }
+
+  return doc
+}
 
 type UserDoc = {
   active?: boolean
@@ -26,15 +60,36 @@ function buildDisplayName(data?: Partial<UserDoc>) {
 export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
+    components: {
+      views: {
+        list: {
+          Component: '@/components/payload/AdminUsersListView#AdminUsersListView'
+        }
+      }
+    },
     group: 'Configuration',
     defaultColumns: ['email', 'role', 'firstName', 'lastName', 'active', 'lastLoginAt'],
     useAsTitle: 'email'
   },
+  labels: {
+    plural: 'Clients',
+    singular: 'Client'
+  },
   auth: {
+    cookies: {
+      sameSite: 'Lax',
+      secure: process.env.NODE_ENV === 'production'
+    },
     lockTime: 15 * 60 * 1000,
     maxLoginAttempts: 5,
     removeTokenFromResponses: true,
-    tokenExpiration: 60 * 60 * 24 * 7
+    tokenExpiration: 60 * 60 * 24 * 7,
+    // Enables per-session revocation (a `sessions` array on the user doc,
+    // matched against the JWT's `sid` claim) instead of purely stateless
+    // JWTs that stay valid until expiry no matter what. This is what makes
+    // "invalidate other sessions on password change/reset" possible at all
+    // — see src/features/auth/service.ts's changePassword/resetPassword.
+    useSessions: true
   },
   access: {
     admin: isAdminBoolean,
@@ -100,12 +155,24 @@ export const Users: CollectionConfig = {
     {
       name: 'active',
       type: 'checkbox',
+      access: {
+        // Otherwise a customer disabled by an admin (isAdminOrSelf allows
+        // self-update) could simply PATCH their own record and re-enable
+        // themselves via Payload's REST/GraphQL/local API.
+        update: isAdminField
+      },
       defaultValue: true,
       required: true
     },
     {
       name: 'emailVerified',
       type: 'checkbox',
+      access: {
+        // Prevents a customer from self-certifying verification once this
+        // flag is actually enforced anywhere (currently cosmetic, but the
+        // field-level gap is real today regardless of current usage).
+        update: isAdminField
+      },
       defaultValue: false,
       required: true
     },
@@ -149,6 +216,7 @@ export const Users: CollectionConfig = {
     }
   ],
   hooks: {
+    afterChange: [auditSecurityRelevantUserChange],
     beforeChange: [
       ({ data, originalDoc }) => {
         const nextData = {

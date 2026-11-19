@@ -17,13 +17,16 @@ export type CustomerOrderItem = {
 }
 
 export type CustomerOrder = {
+  confirmationStatus?: string
   createdAt?: string
   customerEmail: string
   deliveryCost: number
+  fulfillmentStatus?: string
   id: string | number
   items: CustomerOrderItem[]
   locale: Locale
   orderNumber: string
+  orderStatus?: string
   paymentStatus: string
   status: string
   total: number
@@ -31,9 +34,11 @@ export type CustomerOrder = {
 
 function mapOrder(order: Record<string, unknown>): CustomerOrder {
   return {
+    confirmationStatus: typeof order.confirmationStatus === 'string' ? order.confirmationStatus : undefined,
     createdAt: typeof order.createdAt === 'string' ? order.createdAt : undefined,
     customerEmail: String(order.customerEmail || ''),
     deliveryCost: typeof order.deliveryCost === 'number' ? order.deliveryCost : 0,
+    fulfillmentStatus: typeof order.fulfillmentStatus === 'string' ? order.fulfillmentStatus : undefined,
     id: order.id as string | number,
     items: Array.isArray(order.items)
       ? order.items.map((item, index) => {
@@ -53,6 +58,7 @@ function mapOrder(order: Record<string, unknown>): CustomerOrder {
       : [],
     locale: order.locale === 'ar' ? 'ar' : 'fr',
     orderNumber: String(order.orderNumber || ''),
+    orderStatus: typeof order.orderStatus === 'string' ? order.orderStatus : undefined,
     paymentStatus: String(order.paymentStatus || ''),
     status: String(order.status || ''),
     total: typeof order.total === 'number' ? order.total : 0

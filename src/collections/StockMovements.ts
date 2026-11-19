@@ -4,20 +4,31 @@ import { isAdmin } from '@/access/isAdmin'
 
 export const stockMovementTypeOptions = [
   { label: 'Ajustement manuel', value: 'manual_adjustment' },
-  { label: 'Reservation commande', value: 'order_reservation' },
-  { label: 'Liberation reservation', value: 'reservation_release' },
-  { label: 'Expedition commande', value: 'order_fulfillment' },
+  { label: 'Réservation commande', value: 'order_reservation' },
+  { label: 'Libération de réservation', value: 'reservation_release' },
+  { label: 'Expédition commande', value: 'order_fulfillment' },
   { label: 'Retour', value: 'return' },
-  { label: 'Reapprovisionnement', value: 'restock' },
+  { label: 'Réapprovisionnement', value: 'restock' },
   { label: 'Correction', value: 'correction' }
 ] as const
 
 export const StockMovements: CollectionConfig = {
   slug: 'stock-movements',
   admin: {
+    components: {
+      views: {
+        list: {
+          Component: '@/components/payload/AdminStockMovementsListView#AdminStockMovementsListView'
+        }
+      }
+    },
     defaultColumns: ['product', 'type', 'quantityDelta', 'previousQuantity', 'resultingQuantity', 'createdAt'],
     group: 'Catalogue',
     useAsTitle: 'reason'
+  },
+  labels: {
+    plural: 'Journal de stock',
+    singular: 'Mouvement de stock'
   },
   access: {
     create: isAdmin,

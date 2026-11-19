@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server'
 
 import { resetPassword } from '@/features/auth/service'
+import { getClientIp } from '@/lib/security/getClientIp'
+import { checkRateLimit } from '@/lib/security/rateLimit'
+import { rateLimitedJsonResponse } from '@/lib/security/rateLimitResponse'
 
 export async function POST(request: Request) {
   const body = (await request.json()) as Record<string, unknown>
+  const ip = await getClientIp()
+  const rateLimit = checkRateLimit('reset-password', ip)
+
+  if (!rateLimit.allowed) {
+    return rateLimitedJsonResponse(rateLimit.retryAfterSeconds)
+  }
+
   const result = await resetPassword(
     {
       password: typeof body.password === 'string' ? body.password : '',

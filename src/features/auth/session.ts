@@ -26,7 +26,8 @@ function mapUser(user: Record<string, unknown> | null | undefined): AuthUser | n
     passwordChangedAt: typeof user.passwordChangedAt === 'string' ? user.passwordChangedAt : undefined,
     phone: typeof user.phone === 'string' ? user.phone : undefined,
     preferredLocale: user.preferredLocale === 'ar' ? 'ar' : 'fr',
-    role: user.role === 'admin' ? 'admin' : 'customer'
+    role: user.role === 'admin' ? 'admin' : 'customer',
+    sid: typeof user._sid === 'string' ? user._sid : undefined
   }
 }
 

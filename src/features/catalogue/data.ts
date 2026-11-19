@@ -3,6 +3,7 @@ import type { Where } from 'payload'
 
 import type { Locale } from '@/i18n/config'
 import { STOREFRONT_REVALIDATE, STOREFRONT_TAGS, cacheByLocale, cacheBySlug, cacheWithKey } from '@/lib/cache/storefront'
+import { getPublicAddress, getPublicEmail, getPublicPhone, getPublicWhatsappNumber } from '@/lib/contact'
 import { getPayloadClient } from '@/lib/payload/getPayload'
 
 import type {
@@ -109,6 +110,7 @@ type SiteSettingsGlobalDoc = {
   whatsappNumber?: string
   email?: string
   address?: string
+  socialLinks?: Array<{ label?: string; url?: string }>
   header?: {
     searchPlaceholder?: string
   }
@@ -338,15 +340,20 @@ export async function getSiteSettings(locale: Locale): Promise<SiteSettingsData>
         })) as SiteSettingsGlobalDoc
 
         return {
-          address: settings.address,
+          // Placeholder/seed contact values are dropped so they never reach the public UI.
+          address: getPublicAddress(settings.address),
           copyrightText: settings.footer?.copyrightText,
           defaultSeoDescription: settings.defaultSeo?.description,
           defaultSeoTitle: settings.defaultSeo?.title,
-          email: settings.email,
-          phone: settings.phone,
+          email: getPublicEmail(settings.email),
+          phone: getPublicPhone(settings.phone) ? settings.phone : undefined,
           searchPlaceholder: settings.header?.searchPlaceholder,
           siteName: settings.siteName || 'Amous',
-          whatsappNumber: settings.whatsappNumber
+          socialLinks:
+            settings.socialLinks
+              ?.filter((link): link is { label: string; url: string } => Boolean(link.label?.trim() && link.url && /^https:\/\/\S+$/i.test(link.url.trim())))
+              .map((link) => ({ label: link.label.trim(), url: link.url.trim() })) ?? [],
+          whatsappNumber: getPublicWhatsappNumber(settings.whatsappNumber)
         }
       } catch {
         return {

@@ -6,8 +6,10 @@ import { addToCartAction } from '@/features/cart/actions'
 import type { ProductItem } from '@/features/catalogue/types'
 import type { Locale } from '@/i18n/config'
 import { t } from '@/i18n/config'
+import { cn } from '@/lib/utils/cn'
 
 type AddToCartFormProps = {
+  buttonClassName?: string
   className?: string
   locale: Locale
   product: ProductItem
@@ -15,12 +17,15 @@ type AddToCartFormProps = {
   sourcePath: string
 }
 
-function SubmitButton({ disabled, locale }: { disabled: boolean; locale: Locale }) {
+function SubmitButton({ className, disabled, locale }: { className?: string; disabled: boolean; locale: Locale }) {
   const status = useFormStatus()
 
   return (
     <button
-      className="min-h-[var(--touch-target)] rounded-md bg-[var(--color-primary)] px-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+      className={cn(
+        'min-h-[var(--touch-target)] rounded-md bg-[var(--color-primary)] px-4 font-semibold text-white transition-colors hover:bg-[#c70511] disabled:cursor-not-allowed disabled:opacity-60',
+        className
+      )}
       disabled={disabled || status.pending}
       type="submit"
     >
@@ -29,7 +34,7 @@ function SubmitButton({ disabled, locale }: { disabled: boolean; locale: Locale 
   )
 }
 
-export function AddToCartForm({ className, locale, product, quantityInput = false, sourcePath }: AddToCartFormProps) {
+export function AddToCartForm({ buttonClassName, className, locale, product, quantityInput = false, sourcePath }: AddToCartFormProps) {
   const disabled = product.stockStatus === 'out_of_stock' || product.stockQuantity < product.minimumOrderQuantity
 
   return (
@@ -52,7 +57,7 @@ export function AddToCartForm({ className, locale, product, quantityInput = fals
       ) : (
         <input name="quantity" type="hidden" value={product.minimumOrderQuantity} />
       )}
-      <SubmitButton disabled={disabled} locale={locale} />
+      <SubmitButton className={buttonClassName} disabled={disabled} locale={locale} />
       {disabled ? <p className="mt-2 text-sm text-[var(--color-error)]">{t(locale, 'product.outOfStock')}</p> : null}
     </form>
   )

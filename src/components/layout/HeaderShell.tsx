@@ -144,7 +144,7 @@ export function HeaderShell({ data, locale }: HeaderShellProps) {
   const wasDrawerOpen = useRef(false)
 
   const isRtl = locale === 'ar'
-  const logoUrl = '/logo2.png'
+  const logoUrl = '/logo2.jpg'
   const searchPlaceholder = locale === 'fr' ? 'Rechercher...' : data.searchPlaceholder
   const desktopNav = useMemo(
     () => (locale === 'fr' ? frenchCaptureNavigation : data.navigationItems.slice(0, 9)),

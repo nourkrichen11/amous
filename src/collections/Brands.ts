@@ -6,9 +6,20 @@ import { revalidateBrandAfterChange, revalidateBrandAfterDelete } from '@/lib/ca
 export const Brands: CollectionConfig = {
   slug: 'brands',
   admin: {
+    components: {
+      views: {
+        list: {
+          Component: '@/components/payload/AdminBrandsListView#AdminBrandsListView'
+        }
+      }
+    },
     defaultColumns: ['name', 'slug', 'displayOrder', 'featured', 'active'],
     group: 'Catalogue',
     useAsTitle: 'name'
+  },
+  labels: {
+    plural: 'Marques',
+    singular: 'Marque'
   },
   access: {
     create: isAdmin,

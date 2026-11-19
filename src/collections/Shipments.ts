@@ -9,6 +9,10 @@ export const Shipments: CollectionConfig = {
     group: 'Livraison',
     useAsTitle: 'trackingNumber'
   },
+  labels: {
+    plural: 'Expéditions',
+    singular: 'Expédition'
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

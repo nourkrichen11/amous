@@ -39,7 +39,7 @@ export function AuthBrandPanel() {
       <div className="relative z-10 flex h-full flex-col justify-center gap-5 p-8 2xl:gap-6 2xl:p-10">
         <div>
           <div className="inline-flex h-24 w-24 items-center justify-center rounded-2xl border border-white/12 bg-white/6 shadow-[0_18px_44px_rgba(0,0,0,0.16)] 2xl:h-[130px] 2xl:w-[130px]">
-            <Image alt="Logo Amous" className="h-auto w-[88px] 2xl:w-[112px]" height={44} priority src="/logo2.png" width={112} />
+            <Image alt="Logo Amous" className="h-auto w-[88px] 2xl:w-[112px]" height={44} priority src="/logo2.jpg" width={112} />
           </div>
 
           <div className="mt-4 space-y-2 2xl:mt-5">

@@ -4,9 +4,11 @@ import type { Locale } from '@/i18n/config'
 import type { AuthUser } from '@/features/auth/types'
 import { calculateDeliveryFee, getDeliveryConfig } from '@/features/cart/delivery'
 import type { CheckoutInput } from '@/features/cart/validation'
+import { lockHashedKey, LOCK_NS } from '@/features/db/advisoryLock'
 import { reserveInventory } from '@/features/inventory/service'
 import { createOrderEvent } from '@/features/orders/events'
 import { makeCommercialOrderNumber } from '@/features/orders/orderNumbers'
+import { deriveLegacyStatus } from '@/features/orders/status'
 import { calculateTotals } from '@/lib/money'
 import { getPayloadClient } from '@/lib/payload/getPayload'
 
@@ -88,70 +90,103 @@ export async function createCashOnDeliveryOrder(
   }
 
   const totals = calculateTotals(validatedCart.items, delivery.cost)
-  const orderNumber = await makeCommercialOrderNumber(payload)
   const token = makeToken()
   const now = new Date().toISOString()
 
   const transactionID = await payload.db.beginTransaction()
 
+  if (transactionID == null) {
+    throw new Error('NO_ACTIVE_TRANSACTION')
+  }
+
   try {
+    // Closes the true-concurrent double-submit race the pre-transaction
+    // check above can't: two simultaneous requests with the same
+    // idempotencyKey can both pass that check before either commits. Under
+    // this lock, only one re-check can run at a time.
+    await lockHashedKey(payload, transactionID, LOCK_NS.IDEMPOTENCY_KEY, input.idempotencyKey)
+
+    const existingInTx = await payload.find({
+      collection: 'orders',
+      limit: 1,
+      overrideAccess: true,
+      req: { transactionID } as never,
+      where: {
+        idempotencyKey: {
+          equals: input.idempotencyKey
+        }
+      }
+    })
+
+    const existingOrderInTx = existingInTx.docs[0] as { confirmationToken?: string; orderNumber?: string } | undefined
+    if (existingOrderInTx?.orderNumber && existingOrderInTx.confirmationToken) {
+      await payload.db.commitTransaction(transactionID)
+      return { ok: true, orderNumber: existingOrderInTx.orderNumber, token: existingOrderInTx.confirmationToken }
+    }
+
+    // Generated inside the transaction (previously before it began) so a
+    // rollback — e.g. insufficient stock discovered below — correctly
+    // un-reserves the number too, and the counters-table row lock (see
+    // orderNumbers.ts) actually protects concurrent checkouts.
+    const orderNumber = await makeCommercialOrderNumber(payload, transactionID)
+
     const order = await payload.create({
       collection: 'orders',
       data: {
-      billingAddress: {
-        city: input.city,
-        governorate: input.governorate,
-        line1: input.addressLine1,
-        postalCode: input.postalCode
+        billingAddress: {
+          city: input.city,
+          governorate: input.governorate,
+          line1: input.addressLine1,
+          postalCode: input.postalCode
+        },
+        confirmationToken: token,
+        currency: 'TND',
+        customer: user?.id,
+        customerEmail: input.email,
+        customerFirstName: input.firstName,
+        customerLastName: input.lastName,
+        customerNote: input.customerNote,
+        customerPhone: input.phone,
+        deliveryAddress: {
+          city: input.city,
+          governorate: input.governorate,
+          instructions: input.deliveryInstructions,
+          line1: input.addressLine1,
+          postalCode: input.postalCode
+        },
+        deliveryCost: delivery.cost,
+        deliveryMethod: input.deliveryMethod,
+        fulfillmentStatus: 'unfulfilled',
+        idempotencyKey: input.idempotencyKey,
+        items: validatedCart.items.map((item) => ({
+          lineSubtotal: item.lineSubtotal,
+          lineTotal: item.lineTotal,
+          lineVatTotal: item.lineVatTotal,
+          product: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate
+        })),
+        locale,
+        amountToCollect: totals.total,
+        confirmationStatus: 'pending',
+        orderStatus: 'new',
+        orderNumber,
+        paymentMethod: 'cash_on_delivery',
+        paymentStatus: 'unpaid',
+        status: deriveLegacyStatus({ confirmationStatus: 'pending', fulfillmentStatus: 'unfulfilled', orderStatus: 'new' }),
+        statusTimestamps: {
+          receivedAt: now
+        },
+        subtotal: totals.subtotal,
+        total: totals.total,
+        vatTotal: totals.vatTotal
       },
-      confirmationToken: token,
-      currency: 'TND',
-      customer: user?.id,
-      customerEmail: input.email,
-      customerFirstName: input.firstName,
-      customerLastName: input.lastName,
-      customerNote: input.customerNote,
-      customerPhone: input.phone,
-      deliveryAddress: {
-        city: input.city,
-        governorate: input.governorate,
-        instructions: input.deliveryInstructions,
-        line1: input.addressLine1,
-        postalCode: input.postalCode
-      },
-      deliveryCost: delivery.cost,
-      deliveryMethod: input.deliveryMethod,
-      fulfillmentStatus: 'unfulfilled',
-      idempotencyKey: input.idempotencyKey,
-      items: validatedCart.items.map((item) => ({
-        lineSubtotal: item.lineSubtotal,
-        lineTotal: item.lineTotal,
-        lineVatTotal: item.lineVatTotal,
-        product: item.productId,
-        productName: item.productName,
-        productSku: item.productSku,
-        quantity: item.quantity,
-        unit: item.unit,
-        unitPrice: item.unitPrice,
-        vatRate: item.vatRate
-      })),
-      locale,
-      amountToCollect: totals.total,
-      confirmationStatus: 'pending',
-      orderStatus: 'new',
-      orderNumber,
-      paymentMethod: 'cash_on_delivery',
-      paymentStatus: 'unpaid',
-      status: 'received',
-      statusTimestamps: {
-        receivedAt: now
-      },
-      subtotal: totals.subtotal,
-      total: totals.total,
-      vatTotal: totals.vatTotal
-    },
       overrideAccess: true,
-      req: transactionID ? ({ transactionID } as never) : undefined
+      req: { transactionID } as never
     })
 
     await reserveInventory(
@@ -160,7 +195,7 @@ export async function createCashOnDeliveryOrder(
       {
         orderId: order.id,
         reason: `Reservation commande ${orderNumber}`,
-        transactionID: transactionID ?? undefined
+        transactionID
       }
     )
 
@@ -173,25 +208,27 @@ export async function createCashOnDeliveryOrder(
         paymentStatus: 'unpaid'
       },
       orderId: order.id,
-      transactionID: transactionID ?? undefined
+      transactionID
     })
 
-    await markCartConverted(cart.id, transactionID ?? undefined)
+    await markCartConverted(cart.id, transactionID)
 
-    if (transactionID) {
-      await payload.db.commitTransaction(transactionID)
-    }
+    await payload.db.commitTransaction(transactionID)
+
+    return { ok: true, orderNumber, token }
   } catch (error) {
-    if (transactionID) {
-      await payload.db.rollbackTransaction(transactionID)
-    }
+    await payload.db.rollbackTransaction(transactionID)
 
     if (error instanceof Error && error.message === 'INSUFFICIENT_STOCK') {
       return { formError: 'cart_invalid', ok: false }
     }
 
+    const pgCode = (error as { cause?: { code?: string }; code?: string } | undefined)?.code ?? (error as { cause?: { code?: string } } | undefined)?.cause?.code
+
+    if (pgCode === '23505') {
+      return { formError: 'IDEMPOTENCY_CONFLICT', ok: false }
+    }
+
     throw error
   }
-
-  return { ok: true, orderNumber, token }
 }

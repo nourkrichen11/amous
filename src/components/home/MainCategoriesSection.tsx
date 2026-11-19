@@ -14,18 +14,21 @@ export function MainCategoriesSection({ categories, locale }: MainCategoriesSect
   return (
     <HomepageSectionShell
       actionHref={`/${locale}/nos-categories`}
-      actionLabel="Voir toutes les categories"
+      actionLabel="Toutes les catégories"
+      id="categories"
       subtitle="Trouvez rapidement tout ce dont vous avez besoin pour vos travaux."
-      title="Explorez nos categories"
+      title="Explorez nos catégories"
     >
       {categories.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:gap-5 xl:grid-cols-4" role="list">
           {categories.slice(0, 8).map((category) => (
-            <CategoryCard category={category} key={String(category.id)} locale={locale} variant="compact" />
+            <li className="min-w-0" key={String(category.id)}>
+              <CategoryCard category={category} locale={locale} variant="compact" />
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
-        <EmptyState actionHref={`/${locale}/nos-categories`} actionLabel="Voir les categories" description="Aucune categorie n'est disponible pour le moment." title="Categories a venir" />
+        <EmptyState actionHref={`/${locale}/nos-categories`} actionLabel="Voir les catégories" description="Aucune catégorie n'est disponible pour le moment." title="Catégories à venir" />
       )}
     </HomepageSectionShell>
   )

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { CategoryItem } from '@/features/catalogue/types'
 
-import { CategoryCard } from './CategoryCard'
+import { CategoryCard, formatCategoryProductCount } from './CategoryCard'
 
 vi.mock('next/image', () => ({
   default: ({ alt, fill, priority, src, unoptimized, ...props }: Record<string, unknown>) => {
@@ -38,5 +38,14 @@ describe('CategoryCard', () => {
     expect(screen.getByText(/Marteaux, tournevis/)).toBeInTheDocument()
     expect(screen.getByText('Découvrir')).toBeInTheDocument()
     expect(screen.getByAltText(category.image?.alt || '')).toBeInTheDocument()
+  })
+
+  it('pluralizes the product count from catalog data', () => {
+    expect(formatCategoryProductCount(0, 'fr')).toBe('0 produit')
+    expect(formatCategoryProductCount(1, 'fr')).toBe('1 produit')
+    expect(formatCategoryProductCount(24, 'fr')).toBe('24 produits')
+
+    render(<CategoryCard category={{ ...category, productCount: 24 }} locale="fr" />)
+    expect(screen.getByText('24 produits')).toBeInTheDocument()
   })
 })

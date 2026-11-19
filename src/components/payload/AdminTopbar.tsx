@@ -2,7 +2,7 @@
 
 import { Logout, useAuth } from '@payloadcms/ui'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Bell, ChevronDown, Package, Search, ShoppingCart, Users, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 
@@ -31,7 +31,8 @@ function getAdminName(firstName?: string, lastName?: string, email?: string) {
 
 function AdminBreadcrumb() {
   const pathname = usePathname()
-  const { breadcrumb } = getAdminRouteContext(pathname)
+  const search = useSearchParams().toString()
+  const { breadcrumb } = getAdminRouteContext(search ? `${pathname}?${search}` : pathname)
 
   return (
     <div aria-label="Contexte de page" className="amous-topbar__breadcrumb">

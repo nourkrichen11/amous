@@ -11,6 +11,10 @@ export const HeroSlides: CollectionConfig = {
     group: 'Contenu',
     useAsTitle: 'internalName'
   },
+  labels: {
+    plural: 'Bannières',
+    singular: 'Bannière'
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

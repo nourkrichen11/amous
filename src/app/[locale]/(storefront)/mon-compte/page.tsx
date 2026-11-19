@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { AccountLayout } from '@/components/auth/AccountLayout'
 import { requireCustomerUser } from '@/features/auth/session'
 import { getCustomerOrders } from '@/features/auth/data'
-import { isLocale } from '@/i18n/config'
+import { getCustomerOrderStatus } from '@/features/orders/status'
+import { isLocale, t } from '@/i18n/config'
 import { formatTND } from '@/lib/formatting/currency'
 
 type AccountDashboardPageProps = {
@@ -54,7 +55,9 @@ export default async function AccountDashboardPage({ params }: AccountDashboardP
               >
                 <div>
                   <p className="font-semibold">{order.orderNumber}</p>
-                  <p className="text-sm text-[var(--color-text-muted)]">{order.status}</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {t(locale, `order.statusValue.${getCustomerOrderStatus(order as never)}`)}
+                  </p>
                 </div>
                 <p className="font-semibold">{formatTND(order.total / 1000, locale)}</p>
               </Link>

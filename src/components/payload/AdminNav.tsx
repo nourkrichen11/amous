@@ -2,7 +2,7 @@
 
 import { Logout } from '@payloadcms/ui'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 
 import { AdminLogo } from './AdminLoginBrand'
@@ -10,6 +10,8 @@ import { adminNavSections, isCurrentPath } from './adminNavConfig'
 
 export function AdminNav() {
   const pathname = usePathname()
+  const search = useSearchParams().toString()
+  const currentUrl = search ? `${pathname}?${search}` : pathname
 
   return (
     <aside className="nav amous-admin-nav">
@@ -21,7 +23,7 @@ export function AdminNav() {
             <ul>
               {section.items.map((item) => {
                 const Icon = item.icon
-                const active = isCurrentPath(pathname, item.href)
+                const active = isCurrentPath(currentUrl, item.href)
 
                 return (
                   <li key={item.href}>

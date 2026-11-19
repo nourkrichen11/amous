@@ -6,6 +6,7 @@ import { STOREFRONT_TAGS } from '@/lib/cache/storefront'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
+  label: 'Boutique',
   admin: {
     group: 'Configuration'
   },

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { changePassword } from '@/features/auth/service'
 import { getCurrentUser } from '@/features/auth/session'
+import { checkRateLimit } from '@/lib/security/rateLimit'
+import { rateLimitedJsonResponse } from '@/lib/security/rateLimitResponse'
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -14,6 +16,12 @@ export async function POST(request: Request) {
       },
       { status: 401 }
     )
+  }
+
+  const rateLimit = checkRateLimit('change-password', String(user.id))
+
+  if (!rateLimit.allowed) {
+    return rateLimitedJsonResponse(rateLimit.retryAfterSeconds)
   }
 
   const body = (await request.json()) as Record<string, unknown>

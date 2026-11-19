@@ -1,8 +1,8 @@
-import { ProductGrid } from '@/components/product/ProductGrid'
 import { EmptyState } from '@/components/ui/EmptyState'
 import type { ProductItem } from '@/features/catalogue/types'
 import type { Locale } from '@/i18n/config'
 
+import { HomeProductGrid } from './HomeProductGrid'
 import { HomepageSectionShell } from './HomepageSectionShell'
 
 type BestSellingProductsSectionProps = {
@@ -14,13 +14,14 @@ export function BestSellingProductsSection({ locale, products }: BestSellingProd
   return (
     <HomepageSectionShell
       actionHref={`/${locale}/boutique`}
-      subtitle="Les produits les plus apprecies par nos clients."
+      id="meilleures-ventes"
+      subtitle="Les produits les plus appréciés par nos clients."
       title="Meilleures ventes"
     >
       {products.length > 0 ? (
-        <ProductGrid locale={locale} products={products.slice(0, 8)} />
+        <HomeProductGrid locale={locale} products={products} />
       ) : (
-        <EmptyState actionHref={`/${locale}/boutique`} actionLabel="Voir la boutique" description="Les meilleures ventes apparaitront ici des qu'elles seront disponibles." title="Aucun produit mis en avant" />
+        <EmptyState actionHref={`/${locale}/boutique`} actionLabel="Voir la boutique" description="Les meilleures ventes apparaîtront ici dès qu'elles seront disponibles." title="Aucun produit mis en avant" />
       )}
     </HomepageSectionShell>
   )

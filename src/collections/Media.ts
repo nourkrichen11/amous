@@ -8,6 +8,10 @@ export const Media: CollectionConfig = {
     group: 'Contenu',
     useAsTitle: 'altFr'
   },
+  labels: {
+    plural: 'Médias',
+    singular: 'Média'
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

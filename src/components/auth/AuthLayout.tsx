@@ -24,7 +24,7 @@ export function AuthLayout({ children, footer, locale, subtitle, title }: AuthLa
             <section className="flex flex-col justify-center bg-white px-5 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-8 2xl:px-12 2xl:py-10">
               <div className="mx-auto w-full max-w-[500px]">
                 <div className="mb-6 flex justify-center lg:hidden">
-                  <Image alt="Logo Amous" height={44} priority src="/logo2.png" width={116} />
+                  <Image alt="Logo Amous" height={44} priority src="/logo2.jpg" width={116} />
                 </div>
 
                 <div className="space-y-1.5">

@@ -5,9 +5,20 @@ import { isAdmin } from '@/access/isAdmin'
 export const CouponCodes: CollectionConfig = {
   slug: 'coupon-codes',
   admin: {
+    components: {
+      views: {
+        list: {
+          Component: '@/components/payload/AdminCouponCodesListView#AdminCouponCodesListView'
+        }
+      }
+    },
     defaultColumns: ['code', 'promotion', 'usageLimit', 'usedCount', 'active'],
     group: 'Marketing',
     useAsTitle: 'code'
+  },
+  labels: {
+    plural: 'Codes promo',
+    singular: 'Code promo'
   },
   access: {
     create: isAdmin,

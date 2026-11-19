@@ -71,9 +71,20 @@ const validateCategoryHierarchy: CollectionBeforeValidateHook = async ({ data, o
 export const Categories: CollectionConfig = {
   slug: 'categories',
   admin: {
+    components: {
+      views: {
+        list: {
+          Component: '@/components/payload/AdminCategoriesListView#AdminCategoriesListView'
+        }
+      }
+    },
     defaultColumns: ['name', 'parent', 'displayOrder', 'showOnHomepage', 'active'],
     group: 'Catalogue',
     useAsTitle: 'name'
+  },
+  labels: {
+    plural: 'Catégories',
+    singular: 'Catégorie'
   },
   access: {
     create: isAdmin,

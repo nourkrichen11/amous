@@ -89,6 +89,7 @@ export type SiteSettingsData = {
   email?: string
   address?: string
   searchPlaceholder?: string
+  socialLinks?: Array<{ label: string; url: string }>
   copyrightText?: string
   defaultSeoTitle?: string
   defaultSeoDescription?: string

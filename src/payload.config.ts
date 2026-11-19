@@ -4,6 +4,8 @@ import { config as loadEnv } from 'dotenv'
 import path from 'node:path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'node:url'
+import { ar } from '@payloadcms/translations/languages/ar'
+import { fr } from '@payloadcms/translations/languages/fr'
 
 import { Brands } from '@/collections/Brands'
 import { Carts } from '@/collections/Carts'
@@ -67,10 +69,29 @@ export default buildConfig({
     migrationDir: path.resolve(dirname, 'migrations'),
     pool: {
       connectionString: env.DATABASE_URI
-    }
+    },
+    // Dev-mode schema push (drizzle-kit) reconciles the live DB to match
+    // ONLY Payload's own collection-derived schema — anything outside that
+    // (the order_number_counters table and the products CHECK constraints
+    // added by the 20260825 migration) gets silently dropped on the very
+    // next `getPayload()` boot. Verified firsthand: both were wiped after a
+    // single dev-mode init. Real migrations only take effect with push off.
+    push: false
   }),
   editor: lexicalEditor(),
   globals: [HeaderGlobal, Homepage, SiteSettings, DeliveryConfig],
+  // Payload's own UI chrome (search placeholders, "No results", "Create
+  // New", pagination, filter labels...) defaults to English regardless of
+  // the CONTENT `localization` below — that produced the mixed FR/EN admin
+  // strings, not a missing CSS/copy override. Payload's official French
+  // pack covers it, so the custom French components (AdminNav/
+  // AdminDashboard/etc.) now match the framework's own chrome instead of
+  // drifting from it. Arabic is registered too since content locales
+  // include `ar`, but French stays the admin's own interface language.
+  i18n: {
+    fallbackLanguage: 'fr',
+    supportedLanguages: { ar, fr }
+  },
   localization: {
     defaultLocale: 'fr',
     fallback: true,

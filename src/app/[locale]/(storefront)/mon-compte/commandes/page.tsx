@@ -4,7 +4,8 @@ import { AccountLayout } from '@/components/auth/AccountLayout'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { getCustomerOrders } from '@/features/auth/data'
 import { requireCustomerUser } from '@/features/auth/session'
-import { isLocale } from '@/i18n/config'
+import { getCustomerOrderStatus } from '@/features/orders/status'
+import { isLocale, t } from '@/i18n/config'
 import { formatTND } from '@/lib/formatting/currency'
 
 type AccountOrdersPageProps = {
@@ -33,7 +34,9 @@ export default async function AccountOrdersPage({ params }: AccountOrdersPagePro
               >
                 <div>
                   <p className="font-semibold">{order.orderNumber}</p>
-                  <p className="text-sm text-[var(--color-text-muted)]">{order.status}</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {t(locale, `order.statusValue.${getCustomerOrderStatus(order as never)}`)}
+                  </p>
                 </div>
                 <p className="font-semibold">{formatTND(order.total / 1000, locale)}</p>
               </Link>

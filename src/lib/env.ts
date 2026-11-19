@@ -1,11 +1,46 @@
 import { z } from 'zod'
 
-const serverSchema = z.object({
-  DATABASE_URI: z.string().min(1, 'DATABASE_URI is required. Add it to .env.local.'),
-  PAYLOAD_SECRET: z.string().min(16, 'PAYLOAD_SECRET must be at least 16 characters.'),
-  NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
-  NEXT_PUBLIC_DEFAULT_LOCALE: z.enum(['fr', 'ar']).default('fr')
-})
+const serverSchema = z
+  .object({
+    DATABASE_URI: z.string().min(1, 'DATABASE_URI is required. Add it to .env.local.'),
+    PAYLOAD_SECRET: z.string().min(16, 'PAYLOAD_SECRET must be at least 16 characters.'),
+    NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
+    NEXT_PUBLIC_DEFAULT_LOCALE: z.enum(['fr', 'ar']).default('fr'),
+    // Optional in development (falls back to a console-log email adapter —
+    // see src/lib/email/index.ts). Required in production: transactional
+    // email (password reset) cannot silently no-op in a real deployment.
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
+    SMTP_FROM: z.string().optional(),
+    SMTP_SECURE: z
+      .string()
+      .optional()
+      .transform((value) => value === 'true'),
+    // Local-only seed script bootstrap credentials — see src/scripts/seed.ts.
+    // Never used outside development; never logged.
+    ALLOW_SEED: z.string().optional(),
+    SEED_ADMIN_EMAIL: z.string().optional(),
+    SEED_ADMIN_PASSWORD: z.string().optional()
+  })
+  .superRefine((value, ctx) => {
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
+
+    const requiredForProduction = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
+
+    for (const key of requiredForProduction) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${key} is required in production so password-reset email can actually be delivered.`,
+          path: [key]
+        })
+      }
+    }
+  })
 
 export type ServerEnv = z.infer<typeof serverSchema>
 

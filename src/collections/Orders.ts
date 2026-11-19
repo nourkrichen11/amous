@@ -1,4 +1,5 @@
 import type { CollectionAfterChangeHook, CollectionBeforeChangeHook, CollectionConfig } from 'payload'
+import { APIError } from 'payload'
 
 import { isAdmin, isAdminOrOwnOrder } from '@/access/isAdmin'
 import { confirmationStatusOptions, fulfillmentStatusOptions, orderStatusOptions, paymentMethodOptions, paymentStatusOptions } from '@/features/orders/status'
@@ -8,6 +9,42 @@ import { normalizePhone } from '@/lib/phone'
 const normalizeOrderContact: CollectionBeforeChangeHook = ({ data }) => {
   if (typeof data.customerPhone === 'string') {
     data.customerPhoneNormalized = normalizePhone(data.customerPhone)
+  }
+
+  // Users.email is lowercased/trimmed in its own beforeChange hook, but
+  // customerEmail here was not — a guest order stored with different casing
+  // than a later-registered account's normalized email would fail the
+  // customerEmail-equals branch of isAdminOrOwnOrder and lock the customer
+  // out of their own order.
+  if (typeof data.customerEmail === 'string') {
+    data.customerEmail = data.customerEmail.trim().toLowerCase()
+  }
+
+  return data
+}
+
+const WORKFLOW_FIELDS = ['orderStatus', 'confirmationStatus', 'paymentStatus', 'fulfillmentStatus'] as const
+
+/**
+ * These 4 fields are only ever legally written by
+ * `applyOrderAction` (src/features/orders/workflow.ts), which tags its own
+ * `payload.update` calls with `context: { fromWorkflowService: true }` —
+ * mirrors the existing `context.skipStockMovement` idiom used on `Products`.
+ * Access control can't do this job: the only role allowed to touch Orders at
+ * all is `admin`, so a field-level `access.update` check would have to block
+ * admins outright, not just non-workflow code paths. This hook is what
+ * actually prevents the generic Payload admin edit form from bypassing the
+ * order workflow (the original bug this whole feature exists to fix).
+ */
+const guardWorkflowFieldWrites: CollectionBeforeChangeHook = ({ context, data, operation, originalDoc }) => {
+  if (operation !== 'update' || context.fromWorkflowService) {
+    return data
+  }
+
+  const changedField = WORKFLOW_FIELDS.find((field) => field in data && data[field] !== originalDoc?.[field])
+
+  if (changedField) {
+    throw new APIError(`Le champ "${changedField}" est gere exclusivement par les actions du workflow de commande.`, 400)
   }
 
   return data
@@ -30,9 +67,20 @@ const auditOrderChange: CollectionAfterChangeHook = async ({ doc, operation, req
 export const Orders: CollectionConfig = {
   slug: 'orders',
   admin: {
+    components: {
+      views: {
+        list: {
+          Component: '@/components/payload/AdminOrdersListView#AdminOrdersListView'
+        }
+      }
+    },
     defaultColumns: ['orderNumber', 'orderStatus', 'confirmationStatus', 'paymentStatus', 'fulfillmentStatus', 'customerEmail', 'total', 'createdAt'],
     group: 'Ventes',
     useAsTitle: 'orderNumber'
+  },
+  labels: {
+    plural: 'Commandes',
+    singular: 'Commande'
   },
   access: {
     create: isAdmin,
@@ -42,9 +90,18 @@ export const Orders: CollectionConfig = {
   },
   hooks: {
     afterChange: [auditOrderChange],
-    beforeChange: [normalizeOrderContact]
+    beforeChange: [normalizeOrderContact, guardWorkflowFieldWrites]
   },
   fields: [
+    {
+      name: 'orderWorkflowPanel',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '@/components/payload/AdminOrderWorkflowPanel#AdminOrderWorkflowPanel'
+        }
+      }
+    },
     { name: 'orderNumber', type: 'text', required: true, unique: true, index: true, label: 'Numero de commande' },
     { name: 'confirmationToken', type: 'text', required: true, index: true },
     { name: 'idempotencyKey', type: 'text', required: true, unique: true, index: true },
@@ -78,7 +135,8 @@ export const Orders: CollectionConfig = {
       index: true,
       label: 'Statut de la commande',
       admin: {
-        position: 'sidebar'
+        position: 'sidebar',
+        readOnly: true
       }
     },
     {
@@ -90,7 +148,8 @@ export const Orders: CollectionConfig = {
       index: true,
       label: 'Confirmation',
       admin: {
-        position: 'sidebar'
+        position: 'sidebar',
+        readOnly: true
       }
     },
     {
@@ -106,7 +165,8 @@ export const Orders: CollectionConfig = {
       required: true,
       label: 'Paiement',
       admin: {
-        position: 'sidebar'
+        position: 'sidebar',
+        readOnly: true
       }
     },
     {
@@ -130,7 +190,8 @@ export const Orders: CollectionConfig = {
       index: true,
       label: 'Preparation et livraison',
       admin: {
-        position: 'sidebar'
+        position: 'sidebar',
+        readOnly: true
       }
     },
     { name: 'customerFirstName', type: 'text', required: true, index: true },
@@ -218,6 +279,15 @@ export const Orders: CollectionConfig = {
         { name: 'deliveredAt', type: 'date' },
         { name: 'cancelledAt', type: 'date' }
       ]
+    },
+    {
+      name: 'orderActivityTimeline',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '@/components/payload/AdminOrderActivityTimeline#AdminOrderActivityTimeline'
+        }
+      }
     }
   ]
 }

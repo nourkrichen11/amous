@@ -9,6 +9,10 @@ export const AuditLogs: CollectionConfig = {
     group: 'Configuration',
     useAsTitle: 'event'
   },
+  labels: {
+    plural: "Journal d'activité",
+    singular: "Entrée d'activité"
+  },
   access: {
     create: isAdmin,
     delete: isAdmin,

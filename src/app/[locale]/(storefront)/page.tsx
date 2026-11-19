@@ -50,7 +50,7 @@ export default async function HomePage({ params }: HomePageProps) {
         </section>
       )}
 
-      <div className="space-y-10 py-10 md:space-y-16 md:py-16">
+      <div className="space-y-12 pt-10 md:space-y-16 md:pt-14">
         <MainCategoriesSection categories={sections.mainCategories} locale={locale} />
         <BestSellingProductsSection locale={locale} products={sections.bestSellingProducts} />
         <CurrentPromotionsSection locale={locale} products={sections.currentPromotions} />

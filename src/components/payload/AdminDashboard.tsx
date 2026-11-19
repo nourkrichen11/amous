@@ -62,17 +62,6 @@ export async function AdminDashboard() {
 
   return (
     <main className="amous-dashboard">
-      <header className="amous-dashboard__header">
-        <div>
-          <p className="amous-dashboard__eyebrow">AMOUS</p>
-          <h1>Vue d&apos;ensemble</h1>
-          <p>Les priorites de la boutique, en un coup d&apos;oeil.</p>
-        </div>
-        <Link className="amous-dashboard__primary-action" href="/admin/collections/orders/create">
-          Creer une commande
-        </Link>
-      </header>
-
       <section aria-label="Indicateurs du jour" className="amous-dashboard__metrics">
         <DashboardMetric href="/admin/collections/orders" label="Commandes aujourd'hui" value={data.ordersToday} />
         <DashboardMetric href="/admin/collections/orders" label="Chiffre d'affaires aujourd'hui" value={formatMoney(data.revenueToday)} />
