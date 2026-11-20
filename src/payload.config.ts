@@ -1,8 +1,10 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import { config as loadEnv } from 'dotenv'
 import path from 'node:path'
 import { buildConfig } from 'payload'
+import sharp from 'sharp'
 import { fileURLToPath } from 'node:url'
 import { ar } from '@payloadcms/translations/languages/ar'
 import { fr } from '@payloadcms/translations/languages/fr'
@@ -100,9 +102,17 @@ export default buildConfig({
       { code: 'ar', label: 'العربية', rtl: true }
     ]
   },
+  plugins: [
+    vercelBlobStorage({
+      collections: {
+        media: true
+      },
+      token: env.BLOB_READ_WRITE_TOKEN
+    })
+  ],
   secret: env.PAYLOAD_SECRET,
   serverURL: env.NEXT_PUBLIC_SITE_URL,
-  sharp: undefined,
+  sharp,
   typescript: {
     outputFile: path.resolve(dirname, 'types/payload-types.ts')
   }

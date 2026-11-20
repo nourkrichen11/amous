@@ -33,6 +33,7 @@ DATABASE_URI=
 PAYLOAD_SECRET=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_DEFAULT_LOCALE=fr
+BLOB_READ_WRITE_TOKEN=
 ```
 
 Do not store real secrets in `.env.example`.

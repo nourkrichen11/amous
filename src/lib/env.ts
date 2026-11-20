@@ -4,6 +4,7 @@ const serverSchema = z
   .object({
     DATABASE_URI: z.string().min(1, 'DATABASE_URI is required. Add it to .env.local.'),
     PAYLOAD_SECRET: z.string().min(16, 'PAYLOAD_SECRET must be at least 16 characters.'),
+    BLOB_READ_WRITE_TOKEN: z.string().min(1, 'BLOB_READ_WRITE_TOKEN cannot be empty.').optional(),
     NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
     NEXT_PUBLIC_DEFAULT_LOCALE: z.enum(['fr', 'ar']).default('fr'),
     // Optional in development (falls back to a console-log email adapter —
@@ -29,13 +30,16 @@ const serverSchema = z
       return
     }
 
-    const requiredForProduction = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
+    const requiredForProduction = ['BLOB_READ_WRITE_TOKEN', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
 
     for (const key of requiredForProduction) {
       if (!value[key]) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `${key} is required in production so password-reset email can actually be delivered.`,
+          message:
+            key === 'BLOB_READ_WRITE_TOKEN'
+              ? 'BLOB_READ_WRITE_TOKEN is required in production so uploaded media is stored persistently.'
+              : `${key} is required in production so password-reset email can actually be delivered.`,
           path: [key]
         })
       }

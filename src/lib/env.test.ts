@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const ENV_KEYS = ['DATABASE_URI', 'PAYLOAD_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
+const ENV_KEYS = ['BLOB_READ_WRITE_TOKEN', 'DATABASE_URI', 'PAYLOAD_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
 
 function snapshotEnv() {
   return Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]))
@@ -47,6 +47,7 @@ describe('getServerEnv', () => {
       vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URI = 'postgres://test'
       process.env.PAYLOAD_SECRET = 'a'.repeat(20)
+      process.env.BLOB_READ_WRITE_TOKEN = 'blob-token'
       delete process.env.SMTP_HOST
       delete process.env.SMTP_PORT
       delete process.env.SMTP_USER
@@ -60,12 +61,33 @@ describe('getServerEnv', () => {
     }
   })
 
-  it('passes in production once SMTP is fully configured', async () => {
+  it('throws when persistent media storage is not configured in production', async () => {
     const snapshot = snapshotEnv()
     try {
       vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URI = 'postgres://test'
       process.env.PAYLOAD_SECRET = 'a'.repeat(20)
+      process.env.SMTP_HOST = 'smtp.example.com'
+      process.env.SMTP_PORT = '587'
+      process.env.SMTP_USER = 'user'
+      process.env.SMTP_PASSWORD = 'pass'
+      process.env.SMTP_FROM = 'no-reply@example.com'
+      delete process.env.BLOB_READ_WRITE_TOKEN
+
+      const { getServerEnv } = await import('./env')
+      expect(() => getServerEnv()).toThrow(/BLOB_READ_WRITE_TOKEN/)
+    } finally {
+      restoreEnv(snapshot)
+    }
+  })
+
+  it('passes in production once SMTP and persistent media storage are configured', async () => {
+    const snapshot = snapshotEnv()
+    try {
+      vi.stubEnv('NODE_ENV', 'production')
+      process.env.DATABASE_URI = 'postgres://test'
+      process.env.PAYLOAD_SECRET = 'a'.repeat(20)
+      process.env.BLOB_READ_WRITE_TOKEN = 'blob-token'
       process.env.SMTP_HOST = 'smtp.example.com'
       process.env.SMTP_PORT = '587'
       process.env.SMTP_USER = 'user'
