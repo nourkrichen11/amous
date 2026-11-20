@@ -94,22 +94,24 @@ export function ProductCard({ headingLevel = 'h2', highlightAsNew = false, layou
             <StockBadge locale={locale} status={product.stockStatus} />
           </div>
 
-          {cannotAddToCart ? (
-            <Link
-              className="mt-3 inline-flex min-h-[var(--touch-target)] w-full items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-navy)] px-3 text-sm font-semibold text-[var(--color-navy)] transition-colors hover:bg-[var(--color-navy-soft)]"
-              href={productHref}
-            >
-              Voir le produit
-            </Link>
-          ) : (
-            <AddToCartForm
-              buttonClassName="w-full px-2 text-[13px] sm:px-4 sm:text-sm"
-              className="mt-3 grid"
-              locale={locale}
-              product={product}
-              sourcePath={sourcePath || `/${locale}/boutique`}
-            />
-          )}
+          <div className={cn(isList && 'md:max-w-xs')}>
+            {cannotAddToCart ? (
+              <Link
+                className="mt-3 inline-flex min-h-[var(--touch-target)] w-full items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-navy)] px-3 text-sm font-semibold text-[var(--color-navy)] transition-colors hover:bg-[var(--color-navy-soft)]"
+                href={productHref}
+              >
+                Voir le produit
+              </Link>
+            ) : (
+              <AddToCartForm
+                buttonClassName="w-full px-2 text-[13px] sm:px-4 sm:text-sm"
+                className="mt-3 grid"
+                locale={locale}
+                product={product}
+                sourcePath={sourcePath || `/${locale}/boutique`}
+              />
+            )}
+          </div>
         </div>
       </div>
     </article>

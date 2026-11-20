@@ -111,7 +111,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
             {product.promotionalProduct ? <span className="rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">{t(locale, 'product.promotion')}</span> : null}
           </div>
           <h1 className="mt-3 text-3xl font-bold">{product.name}</h1>
-          {product.brand ? <p className="mt-2 text-sm font-semibold text-[var(--color-text-muted)]">{product.brand.name}</p> : null}
+          {product.brand ? (
+            <p className="mt-2 text-sm font-semibold text-[var(--color-text-muted)]">
+              <Link className="rounded-sm underline-offset-2 hover:text-[var(--color-primary)] hover:underline" href={`/${locale}/marques/${encodeURIComponent(product.brand.slug)}`}>
+                {product.brand.name}
+              </Link>
+            </p>
+          ) : null}
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
             {t(locale, 'product.sku')} <span dir="ltr">{product.sku}</span>
           </p>

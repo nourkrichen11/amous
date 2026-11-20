@@ -52,6 +52,7 @@ describe('formatResultRange', () => {
     expect(formatResultRange(2, 24, 30)).toBe('25–30 sur 30 produits')
     expect(formatResultRange(1, 24, 1)).toBe('1–1 sur 1 produit')
     expect(formatResultRange(1, 24, 0)).toBe('0 produit')
+    expect(formatResultRange(5, 24, 2)).toBe('0 sur 2 produits')
   })
 })
 
@@ -71,6 +72,11 @@ describe('active filters', () => {
     expect(filters.map((filter) => filter.label)).toEqual(['« vis »', 'Visserie', 'Bosch', 'Stanley', 'En stock', '10 DT – 50 DT'])
     const bosch = filters.find((filter) => filter.key === 'brand-bosch')
     expect(bosch?.href).toBe('/fr/c/quincaillerie?brand=stanley&limit=32&maxPrice=50&minPrice=10&q=vis&sort=name&stock=in_stock&sub=visserie')
+  })
+
+  it('orders an inverted price range in the chip label', () => {
+    const [price] = getActiveFilters({ brands: [], params: { maxPrice: '1', minPrice: '200' }, path: '/fr/c/x' })
+    expect(price.label).toBe('1 DT – 200 DT')
   })
 
   it('clears filters and search but keeps display preferences', () => {

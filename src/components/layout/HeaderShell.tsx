@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import type { AuthUserSummary } from '@/features/auth/types'
+import { CART_UPDATED_EVENT } from '@/features/cart/events'
 import type { HeaderData, HeaderNavItem } from '@/features/homepage/types'
 import type { Locale } from '@/i18n/config'
 import { t } from '@/i18n/config'
@@ -189,7 +190,15 @@ export function HeaderShell({ data, locale }: HeaderShellProps) {
 
     void loadHeaderState()
 
-    return () => controller.abort()
+    // Add-to-cart redirects are soft navigations, so the header does not remount:
+    // refresh the count when the page signals a cart change.
+    const onCartUpdated = () => void loadHeaderState()
+    window.addEventListener(CART_UPDATED_EVENT, onCartUpdated)
+
+    return () => {
+      controller.abort()
+      window.removeEventListener(CART_UPDATED_EVENT, onCartUpdated)
+    }
   }, [])
 
   useEffect(() => {

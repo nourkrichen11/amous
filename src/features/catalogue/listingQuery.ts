@@ -39,6 +39,8 @@ export function parsePriceRange(params: ResolvedSearchParams): { maxPrice?: numb
 }
 
 type ListingQueryOptions = {
+  /** Fixed brand scope (brand pages); URL `brand` filters cannot widen it. */
+  brandIds?: ID[]
   categoryIds?: ID[]
   defaultPageSize: number
   defaultSort?: string
@@ -55,7 +57,8 @@ export function buildListingQuery(params: ResolvedSearchParams, options: Listing
   const sort = options.sortOptions ? parseListingSort(params.sort, options.sortOptions, options.defaultSort ?? options.sortOptions[0]) : params.sort
 
   return {
-    brandSlugs: parseList(params.brand),
+    brandIds: options.brandIds,
+    brandSlugs: options.brandIds ? [] : parseList(params.brand),
     categoryIds: options.categoryIds,
     featured: params.featured === '1',
     inStock: params.inStock === '1',
@@ -78,10 +81,16 @@ export function formatResultRange(page: number, pageSize: number, totalDocs: num
     return '0 produit'
   }
 
-  const from = Math.min((page - 1) * pageSize + 1, totalDocs)
-  const to = Math.min(page * pageSize, totalDocs)
   const formatter = new Intl.NumberFormat('fr-TN')
   const noun = totalDocs > 1 ? 'produits' : 'produit'
+  const offset = (page - 1) * pageSize
+
+  if (offset >= totalDocs) {
+    return `0 sur ${formatter.format(totalDocs)} ${noun}`
+  }
+
+  const from = offset + 1
+  const to = Math.min(page * pageSize, totalDocs)
 
   return `${formatter.format(from)}–${formatter.format(to)} sur ${formatter.format(totalDocs)} ${noun}`
 }

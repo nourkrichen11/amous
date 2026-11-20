@@ -25,8 +25,7 @@ const navLinkClass = `inline-flex min-h-9 items-center text-sm ${mutedText} tran
 
 function ColumnHeading({ children, id }: { children: ReactNode; id?: string }) {
   return (
-    <h2 className="flex items-center gap-2.5 text-base font-bold text-white" id={id}>
-      <span aria-hidden="true" className="h-4 w-1 rounded-full bg-[var(--color-primary)]" />
+    <h2 className="text-sm font-bold text-white" id={id}>
       {children}
     </h2>
   )
@@ -35,7 +34,7 @@ function ColumnHeading({ children, id }: { children: ReactNode; id?: string }) {
 function NavColumn({ links, title }: { links: FooterLink[]; title: string }) {
   return (
     <nav aria-label={title}>
-      <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-white">{title}</h2>
+      <ColumnHeading>{title}</ColumnHeading>
       <ul className="mt-3 grid">
         {links.map((link) => (
           <li key={link.href}>
@@ -62,33 +61,29 @@ export function Footer({ delivery, locale, logoUrl = '/logo2.jpg', settings }: F
     { href: `${home}/boutique`, label: 'Tous les produits' },
     { href: `${home}/nos-categories`, label: t(locale, 'navigation.categories') },
     { href: `${home}/boutique?promotion=1`, label: 'Offres' },
-    { href: `${home}#marques`, label: t(locale, 'navigation.brands') }
+    { href: `${home}/marques`, label: t(locale, 'navigation.brands') }
   ]
   const helpLinks: FooterLink[] = [
     { href: '#faq-livraison', label: t(locale, 'footer.delivery') },
     { href: '#faq-paiement', label: t(locale, 'footer.payment') },
     { href: '#faq-retours', label: t(locale, 'footer.returns') },
-    { href: '#footer-contact', label: t(locale, 'navigation.contact') }
-  ]
-  const companyLinks: FooterLink[] = [
+    { href: '#footer-contact', label: t(locale, 'navigation.contact') },
     { href: '#footer-store', label: 'Notre magasin' },
-    { href: '#footer-contact', label: 'Horaires & contact' },
     { href: '#footer-faq', label: 'Questions fréquentes' },
     { href: `${home}/mon-compte`, label: t(locale, 'navigation.account') }
   ]
 
   return (
-    <footer className="mt-12 bg-[var(--color-footer-bg)] text-white md:mt-16">
-      <div aria-hidden="true" className="h-1 bg-[var(--color-primary)]" />
-
-      {/* Section 1 — store, hours & contact, FAQ */}
-      <div className="container-wide grid gap-10 py-12 md:grid-cols-2 lg:grid-cols-3 lg:gap-12 lg:py-14">
+    <footer className="mt-12 border-t-4 border-[var(--color-primary)] bg-[var(--color-footer-bg)] text-white md:mt-16">
+      <div className="container-wide grid gap-x-8 gap-y-9 py-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1.4fr)] lg:py-12 xl:gap-x-10">
         <section aria-labelledby="footer-store-title" className="scroll-mt-24" id="footer-store">
-          <ColumnHeading id="footer-store-title">Le magasin</ColumnHeading>
-          <address className={`mt-4 flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--color-footer-line)] bg-white/[0.03] p-4 text-sm not-italic leading-relaxed ${mutedText}`}>
-            <span aria-hidden="true" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--color-primary)]">
-              <MapPin size={15} />
-            </span>
+          <h2 className="sr-only" id="footer-store-title">Le magasin</h2>
+          <Link aria-label={`${store.legalName} — accueil`} className="relative inline-block h-[64px] w-[128px] overflow-hidden rounded-[var(--radius-sm)] align-top" href={home}>
+            <Image alt="" className="object-cover" fill sizes="128px" src={logoUrl} unoptimized />
+          </Link>
+          <p className={`mt-4 max-w-xs text-sm leading-relaxed ${mutedText}`}>{store.description}</p>
+          <address className={`mt-4 flex items-start gap-2.5 text-sm not-italic leading-relaxed ${mutedText}`}>
+            <MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--color-primary)]" size={16} />
             <span>
               <span className="font-semibold text-white">{store.legalName}</span>
               {store.addressLines.map((line) => (
@@ -122,6 +117,22 @@ export function Footer({ delivery, locale, logoUrl = '/logo2.jpg', settings }: F
               <ExternalLink aria-hidden="true" className="opacity-60" size={14} />
             </a>
           ) : null}
+          {store.socialLinks.length > 0 ? (
+            <ul className="mt-4 flex flex-wrap gap-2" aria-label="Réseaux sociaux">
+              {store.socialLinks.map((link) => (
+                <li key={link.url}>
+                  <a
+                    className="inline-flex min-h-9 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-white transition-colors hover:border-white/30 hover:bg-white/5"
+                    href={link.url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </section>
 
         <section aria-labelledby="footer-contact-title" className="scroll-mt-24" id="footer-contact">
@@ -130,26 +141,7 @@ export function Footer({ delivery, locale, logoUrl = '/logo2.jpg', settings }: F
             {store.hasOpeningHours ? <StoreOpenStatus rules={store.openingRules} timeZone={store.timezone} /> : null}
           </div>
 
-          <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-footer-line)] bg-white/[0.03] p-4">
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-white">
-              <Clock aria-hidden="true" className="text-[var(--color-primary)]" size={14} />
-              Horaires d&apos;ouverture
-            </p>
-            {store.openingHours.length > 0 ? (
-              <dl className="mt-3 grid gap-2 text-sm">
-                {store.openingHours.map((row) => (
-                  <div className="flex items-baseline justify-between gap-4 border-b border-[var(--color-footer-line)] pb-2 last:border-0 last:pb-0" key={row.label}>
-                    <dt className="text-white">{row.label}</dt>
-                    <dd className={`text-end tabular-nums ${row.closed ? 'text-[var(--color-footer-muted)]' : 'text-white/90'}`}>{row.hours}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>Appelez-nous pour connaître nos horaires d&apos;ouverture avant de vous déplacer.</p>
-            )}
-          </div>
-
-          <ul className="mt-5 grid gap-1">
+          <ul className="mt-3 grid gap-1">
             {store.phones.map((phone) => (
               <li key={phone.href}>
                 <a aria-label={`Appeler le ${phone.display}`} className="group inline-flex min-h-10 items-center gap-3 text-[15px] font-semibold text-white" href={phone.href}>
@@ -183,11 +175,35 @@ export function Footer({ delivery, locale, logoUrl = '/logo2.jpg', settings }: F
               </li>
             ) : null}
           </ul>
+
+          <div className="mt-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Clock aria-hidden="true" className="text-[var(--color-primary)]" size={14} />
+              Horaires d&apos;ouverture
+            </p>
+            {store.openingHours.length > 0 ? (
+              <dl className="mt-3 grid gap-2 text-sm">
+                {store.openingHours.map((row) => (
+                  <div className="flex items-baseline justify-between gap-4 border-b border-[var(--color-footer-line)] pb-2 last:border-0 last:pb-0" key={row.label}>
+                    <dt className="text-white">{row.label}</dt>
+                    <dd className={`text-end tabular-nums ${row.closed ? mutedText : 'text-white/90'}`}>{row.hours}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className={`mt-2 max-w-xs text-sm leading-relaxed ${mutedText}`}>Appelez-nous pour connaître nos horaires d&apos;ouverture avant de vous déplacer.</p>
+            )}
+          </div>
         </section>
 
-        <section aria-labelledby="footer-faq-title" className="scroll-mt-24 md:col-span-2 lg:col-span-1" id="footer-faq">
+        <div className="grid grid-cols-2 gap-x-4">
+          <NavColumn links={shopLinks} title={t(locale, 'footer.shop')} />
+          <NavColumn links={helpLinks} title={t(locale, 'footer.help')} />
+        </div>
+
+        <section aria-labelledby="footer-faq-title" className="scroll-mt-24" id="footer-faq">
           <ColumnHeading id="footer-faq-title">Questions fréquentes</ColumnHeading>
-          <div className="mt-4 divide-y divide-[var(--color-footer-line)] border-y border-[var(--color-footer-line)]">
+          <div className="mt-2 divide-y divide-[var(--color-footer-line)] border-b border-[var(--color-footer-line)]">
             {faq.map((item) => (
               <details className="group scroll-mt-24" id={item.id} key={item.id} name="footer-faq">
                 <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-semibold text-white transition-colors hover:text-white/80 [&::-webkit-details-marker]:hidden">
@@ -216,47 +232,9 @@ export function Footer({ delivery, locale, logoUrl = '/logo2.jpg', settings }: F
         </section>
       </div>
 
-      {/* Section 2 — navigation */}
-      <div className="border-t border-[var(--color-footer-line)] bg-[var(--color-footer-deep)]">
-        <div className="container-wide grid grid-cols-2 gap-x-6 gap-y-8 py-10 md:grid-cols-4 lg:grid-cols-[1.6fr_repeat(3,minmax(0,1fr))] lg:gap-10">
-          <div className="col-span-2 max-w-sm md:col-span-4 lg:col-span-1">
-            <Link aria-label={`${store.legalName} — accueil`} className="relative inline-block h-[64px] w-[128px] overflow-hidden" href={home}>
-              <Image alt="" className="object-cover" fill sizes="128px" src={logoUrl} unoptimized />
-            </Link>
-            <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>{store.description}</p>
-            {store.socialLinks.length > 0 ? (
-              <ul className="mt-4 flex flex-wrap gap-2" aria-label="Réseaux sociaux">
-                {store.socialLinks.map((link) => (
-                  <li key={link.url}>
-                    <a
-                      className="inline-flex min-h-9 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-white transition-colors hover:border-white/30 hover:bg-white/5"
-                      href={link.url}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          <NavColumn links={shopLinks} title={t(locale, 'footer.shop')} />
-          <NavColumn links={helpLinks} title={t(locale, 'footer.help')} />
-          <div className="col-span-2 md:col-span-1">
-            <NavColumn links={companyLinks} title="AMOUS" />
-          </div>
-        </div>
-      </div>
-
-      {/* Section 3 — legal */}
-      <div className="border-t border-[var(--color-footer-line)] bg-[var(--color-footer-deep)]">
-        <div className={`container-wide py-5 text-xs ${mutedText}`}>
-          <p>
-            © {year} {store.legalName}. Tous droits réservés.
-          </p>
-        </div>
-      </div>
+      <p className={`container-wide border-t border-[var(--color-footer-line)] py-5 text-xs ${mutedText}`}>
+        © {year} {store.legalName}. Tous droits réservés.
+      </p>
     </footer>
   )
 }

@@ -168,5 +168,32 @@
     "returns": "الإرجاع",
     "stores": "المتاجر",
     "services": "الخدمات"
+  },
+  "brands": {
+    "title": "علاماتنا التجارية",
+    "description": "اكتشف العلامات التجارية التي توفّرها أموس وتصفّح منتجاتها مباشرة.",
+    "metaTitle": "علاماتنا التجارية",
+    "metaDescription": "جميع علامات العُدد والخردوات والمعدّات المتوفّرة لدى أموس في تونس.",
+    "countOne": "{count} علامة تجارية",
+    "countOther": "{count} علامة تجارية",
+    "emptyTitle": "العلامات التجارية قريبًا",
+    "emptyDescription": "لا توجد علامات تجارية متاحة حاليًا.",
+    "browseShop": "تصفّح المتجر",
+    "viewProducts": "عرض المنتجات",
+    "logoAlt": "شعار {name}",
+    "productsOne": "{count} منتج",
+    "productsOther": "{count} منتج",
+    "productsLabel": "منتجات {name}",
+    "noProductsTitle": "لا توجد منتجات حاليًا",
+    "noProductsDescription": "ستظهر منتجات {name} هنا فور توفّرها.",
+    "noMatchTitle": "لا توجد منتجات مطابقة للفلاتر",
+    "noMatchDescription": "جرّب إزالة فلتر أو أكثر.",
+    "clearFilters": "مسح الكل",
+    "emptyPageTitle": "هذه الصفحة فارغة",
+    "emptyPageDescription": "الصفحة المطلوبة غير موجودة لهذا الاختيار.",
+    "firstPage": "العودة إلى الصفحة الأولى",
+    "allBrands": "كل العلامات",
+    "brandMetaTitle": "منتجات {name}",
+    "brandMetaDescription": "اكتشف منتجات {name} المتوفّرة لدى أموس: الأسعار والتوفّر والتوصيل في تونس."
   }
 }

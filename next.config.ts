@@ -44,6 +44,14 @@ const nextConfig: NextConfig = {
       }
     ]
   },
+  async redirects() {
+    return [
+      // Singular "marque" URLs → the localized brand directory / brand pages.
+      { destination: '/fr/marques', permanent: true, source: '/marque' },
+      { destination: '/:locale/marques', permanent: true, source: '/:locale(fr|ar)/marque' },
+      { destination: '/:locale/marques/:brandSlug', permanent: true, source: '/:locale(fr|ar)/marque/:brandSlug' }
+    ]
+  },
   async headers() {
     return [
       {

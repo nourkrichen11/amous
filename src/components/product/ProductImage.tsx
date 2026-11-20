@@ -24,8 +24,8 @@ export function ProductImageFallback({ className, name }: ProductImageFallbackPr
       className={cn('flex h-full w-full flex-col items-center justify-center gap-2.5 bg-[var(--color-image-well)]', className)}
       role="img"
     >
-      <span aria-hidden="true" className="relative block h-12 w-16 overflow-hidden rounded-[var(--radius-md)] bg-[var(--color-navy)] opacity-90">
-        <Image alt="" className="scale-[1.9] object-contain" fill sizes="64px" src="/logo2.jpg" />
+      <span aria-hidden="true" className="relative block h-12 w-20 overflow-hidden rounded-[var(--radius-md)] bg-[var(--color-navy)] opacity-90">
+        <Image alt="" className="scale-[1.55] object-contain" fill sizes="80px" src="/logo2.jpg" />
       </span>
       <span aria-hidden="true" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
         Photo à venir

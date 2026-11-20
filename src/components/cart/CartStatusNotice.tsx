@@ -4,6 +4,8 @@ import Link from 'next/link'
 import type { Locale } from '@/i18n/config'
 import { t, type TranslationKey } from '@/i18n/config'
 
+import { CartUpdatedSignal } from './CartUpdatedSignal'
+
 type CartStatusNoticeProps = {
   locale: Locale
   params: Record<string, string | undefined>
@@ -28,6 +30,7 @@ export function CartStatusNotice({ locale, params }: CartStatusNoticeProps) {
       ].join(' ')}
       role="status"
     >
+      <CartUpdatedSignal />
       {issue ? <CircleAlert aria-hidden="true" className="shrink-0" size={18} /> : <CheckCircle2 aria-hidden="true" className="shrink-0" size={18} />}
       <p className="min-w-0 flex-1 font-medium">{issue ? t(locale, `cart.issue.${issue}` as TranslationKey) : 'Produit ajouté au panier.'}</p>
       <Link className="font-semibold underline underline-offset-2" href={`/${locale}/panier`}>

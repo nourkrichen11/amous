@@ -44,6 +44,11 @@ export type BrandItem = {
   name: string
   slug: string
   logo?: MediaItem
+  description?: string
+  seo?: {
+    title?: string
+    description?: string
+  }
 }
 
 export type ProductAttribute = {
@@ -121,6 +126,8 @@ export type ProductQuery = {
   categoryIds?: ID[]
   brandSlug?: string
   brandSlugs?: string[]
+  /** Fixed brand restriction (brand pages), applied on top of URL filters. */
+  brandIds?: ID[]
   minPrice?: number
   maxPrice?: number
   inStock?: boolean

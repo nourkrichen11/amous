@@ -93,7 +93,20 @@ function FilterPanel({ autoApply, brands, categories = [], clearHref, idPrefix, 
   }
 
   return (
-    <form action={path} className="flex min-h-0 flex-1 flex-col" method="get" onChange={handleChange}>
+    <form
+      action={path}
+      className="flex min-h-0 flex-1 flex-col"
+      method="get"
+      onChange={handleChange}
+      onSubmit={(event) => {
+        // Keep URLs clean and shareable: empty fields (blank prices, "Toutes") are not sent.
+        Array.from(event.currentTarget.elements).forEach((element) => {
+          if (element instanceof HTMLInputElement && element.value === '' && element.type !== 'search') {
+            element.disabled = true
+          }
+        })
+      }}
+    >
       {Object.entries(params).map(([name, value]) => (value && !FILTER_PARAMS.has(name) ? <input key={name} name={name} type="hidden" value={value} /> : null))}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 lg:overflow-visible lg:px-0">

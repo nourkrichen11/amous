@@ -67,7 +67,7 @@ export function CatalogueToolbar({ activeFilters, clearHref, defaultPageSize, de
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
-        <p aria-live="polite" className="text-sm text-[var(--color-text-muted)]">
+        <p aria-live="polite" className="text-sm text-[var(--color-text-muted)]" dir="auto">
           <span className="font-semibold text-[var(--color-navy)]">{formatResultRange(page, pageSize, totalDocs)}</span>
         </p>
 

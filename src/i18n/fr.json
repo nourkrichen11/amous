@@ -168,5 +168,32 @@
     "returns": "Retours",
     "stores": "Magasins",
     "services": "Services"
+  },
+  "brands": {
+    "title": "Nos marques",
+    "description": "Découvrez les marques distribuées par AMOUS et accédez directement à leurs produits.",
+    "metaTitle": "Nos marques",
+    "metaDescription": "Toutes les marques d’outillage, de quincaillerie et d’équipement disponibles chez AMOUS, en Tunisie.",
+    "countOne": "{count} marque",
+    "countOther": "{count} marques",
+    "emptyTitle": "Marques à venir",
+    "emptyDescription": "Aucune marque n’est disponible pour le moment.",
+    "browseShop": "Voir la boutique",
+    "viewProducts": "Voir les produits",
+    "logoAlt": "Logo {name}",
+    "productsOne": "{count} produit",
+    "productsOther": "{count} produits",
+    "productsLabel": "Produits {name}",
+    "noProductsTitle": "Aucun produit pour le moment",
+    "noProductsDescription": "Les produits {name} apparaîtront ici dès qu’ils seront disponibles.",
+    "noMatchTitle": "Aucun produit ne correspond à vos filtres",
+    "noMatchDescription": "Essayez de retirer un ou plusieurs filtres.",
+    "clearFilters": "Tout effacer",
+    "emptyPageTitle": "Cette page est vide",
+    "emptyPageDescription": "La page demandée n’existe pas pour cette sélection.",
+    "firstPage": "Revenir à la première page",
+    "allBrands": "Toutes les marques",
+    "brandMetaTitle": "Produits {name}",
+    "brandMetaDescription": "Découvrez les produits {name} disponibles chez AMOUS : prix, disponibilité et livraison en Tunisie."
   }
 }

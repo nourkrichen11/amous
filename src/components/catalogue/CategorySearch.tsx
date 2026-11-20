@@ -58,7 +58,7 @@ export function CategorySearch({ categoryName, params, path }: CategorySearchPro
       <Search aria-hidden="true" className="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
       <input
         autoComplete="off"
-        className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white ps-11 pe-20 text-sm text-[var(--color-text)] shadow-[var(--shadow-subtle)] outline-none placeholder:text-slate-400 focus:border-[var(--color-navy)] [&::-webkit-search-cancel-button]:hidden"
+        className={`h-11 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white ps-11 text-sm text-[var(--color-text)] shadow-[var(--shadow-subtle)] outline-none placeholder:text-slate-400 focus:border-[var(--color-navy)] [&::-webkit-search-cancel-button]:hidden ${value || isPending ? 'pe-20' : 'pe-3'}`}
         enterKeyHint="search"
         id="category-search"
         maxLength={80}

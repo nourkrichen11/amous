@@ -51,9 +51,15 @@ type CategoryDoc = {
 
 type BrandDoc = {
   id: ID
+  active?: boolean
+  description?: string
   name?: string
   slug?: string
   logo?: Relation<MediaDoc>
+  seo?: {
+    title?: string
+    description?: string
+  }
 }
 
 type ProductDoc = {
@@ -129,6 +135,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 const PUBLISHED_PRODUCT: Where = { active: { equals: true } }
+const ACTIVE_BRAND: Where = { active: { equals: true } }
 
 function resolveRelation<T extends { id: ID }>(value: Relation<T>): T | undefined {
   return isObject(value) && 'id' in value ? (value as T) : undefined
@@ -207,14 +214,17 @@ function mapCategory(category: Relation<CategoryDoc>, locale: Locale): CategoryI
 function mapBrand(brand: Relation<BrandDoc>, locale: Locale): BrandItem | undefined {
   const doc = resolveRelation(brand)
 
-  if (!doc || !doc.name || !doc.slug) {
+  // Inactive brands are never exposed publicly (also hides them on product cards/pages).
+  if (!doc || !doc.name || !doc.slug || doc.active === false) {
     return undefined
   }
 
   return {
+    description: doc.description?.trim() || undefined,
     id: doc.id,
     logo: mapMedia(doc.logo, locale),
     name: doc.name,
+    seo: doc.seo?.title || doc.seo?.description ? { description: doc.seo.description, title: doc.seo.title } : undefined,
     slug: doc.slug
   }
 }
@@ -728,9 +738,7 @@ export async function getFeaturedBrands(locale: Locale): Promise<BrandItem[]> {
           locale,
           sort: 'name',
           where: {
-            featured: {
-              equals: true
-            }
+            and: [ACTIVE_BRAND, { featured: { equals: true } }]
           }
         })
 
@@ -755,12 +763,14 @@ export async function getBrands(locale: Locale): Promise<BrandItem[]> {
     async () => {
       try {
         const payload = await getPayloadClient()
+        // The Local API bypasses the collection's activeOnly read rule: filter explicitly.
         const result = await payload.find({
           collection: 'brands',
           depth: 1,
-          limit: 100,
+          limit: 200,
           locale,
-          sort: 'name'
+          sort: 'name',
+          where: ACTIVE_BRAND
         })
 
         return (result.docs as BrandDoc[])
@@ -773,6 +783,38 @@ export async function getBrands(locale: Locale): Promise<BrandItem[]> {
     {
       revalidate: STOREFRONT_REVALIDATE.brands,
       tags: [STOREFRONT_TAGS.brands]
+    }
+  )
+}
+
+/** Active brand by slug, or null for unknown/inactive brands (callers return 404). */
+export async function getBrandBySlug(locale: Locale, slug: string): Promise<BrandItem | null> {
+  return cacheBySlug(
+    'brand-by-slug',
+    locale,
+    slug,
+    async () => {
+      try {
+        const payload = await getPayloadClient()
+        const result = await payload.find({
+          collection: 'brands',
+          depth: 1,
+          limit: 1,
+          locale,
+          where: {
+            and: [ACTIVE_BRAND, { slug: { equals: slug } }]
+          }
+        })
+
+        return mapBrand(result.docs[0] as BrandDoc | undefined, locale) ?? null
+      } catch {
+        return null
+      }
+    },
+    {
+      revalidate: STOREFRONT_REVALIDATE.brands,
+      // `brand:${slug}` is invalidated by the Brands collection hooks on change/delete.
+      tags: [STOREFRONT_TAGS.brands, `brand:${slug}`]
     }
   )
 }
@@ -910,9 +952,7 @@ async function getBrandIdsBySlugs(locale: Locale, slugs: string[]): Promise<ID[]
     limit: Math.min(slugs.length, 100),
     locale,
     where: {
-      slug: {
-        in: slugs
-      }
+      and: [ACTIVE_BRAND, { slug: { in: slugs } }]
     }
   })
 
@@ -932,6 +972,11 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
       and.push({ category: { in: query.categoryIds } })
     } else if (query.categoryId) {
       and.push({ category: { equals: query.categoryId } })
+    }
+
+    // Fixed restriction (brand pages): always applied, independent of URL filters.
+    if (query.brandIds?.length) {
+      and.push({ brand: { in: query.brandIds } })
     }
 
     const requestedBrandSlugs = query.brandSlugs ?? (query.brandSlug ? [query.brandSlug] : [])
@@ -1000,13 +1045,24 @@ export async function getProducts(query: ProductQuery): Promise<ProductListing> 
       where
     })
 
+    let { totalDocs, totalPages } = result
+    let page = result.page ?? query.page ?? 1
+    // Payload (postgres) reports totalDocs = 0 and page = 1 for an out-of-range page when
+    // sorting on a localized field (e.g. `name`); recount so "page is empty" is not shown
+    // as "no results".
+    if (result.docs.length === 0 && (query.page ?? 1) > 1) {
+      totalDocs = (await payload.count({ collection: 'products', locale: query.locale, where })).totalDocs
+      totalPages = Math.ceil(totalDocs / (query.pageSize ?? 12))
+      page = query.page ?? page
+    }
+
     return {
-      page: result.page ?? 1,
+      page,
       products: (result.docs as ProductDoc[])
         .map((product) => mapProduct(product, query.locale))
         .filter((product): product is ProductItem => Boolean(product)),
-      totalDocs: result.totalDocs,
-      totalPages: result.totalPages
+      totalDocs,
+      totalPages
     }
   } catch {
     return {
@@ -1110,14 +1166,23 @@ export type CategoryListingFacets = {
  * the price span, and stock-status counts. Reads only three columns of published products.
  */
 export async function getCategoryListingFacets(locale: Locale, categoryIds: ID[]): Promise<CategoryListingFacets> {
-  const empty: CategoryListingFacets = { brands: [], categoryCounts: {}, stock: { in_stock: 0, low_stock: 0, out_of_stock: 0 } }
+  return getListingFacets(locale, { categoryIds })
+}
 
-  if (categoryIds.length === 0) {
+/** Facets for a fixed listing scope (a category and/or a brand). */
+export async function getListingFacets(locale: Locale, scope: { brandIds?: ID[]; categoryIds?: ID[] }): Promise<CategoryListingFacets> {
+  const empty: CategoryListingFacets = { brands: [], categoryCounts: {}, stock: { in_stock: 0, low_stock: 0, out_of_stock: 0 } }
+  const scopeWhere: Where[] = [
+    ...(scope.categoryIds?.length ? [{ category: { in: scope.categoryIds } }] : []),
+    ...(scope.brandIds?.length ? [{ brand: { in: scope.brandIds } }] : [])
+  ]
+
+  if (scopeWhere.length === 0) {
     return empty
   }
 
   return cacheWithKey(
-    ['category-facets', locale, categoryIds.map(String).join(',')],
+    ['listing-facets', locale, (scope.categoryIds ?? []).map(String).join(','), (scope.brandIds ?? []).map(String).join(',')],
     async () => {
       try {
         const payload = await getPayloadClient()
@@ -1128,7 +1193,7 @@ export async function getCategoryListingFacets(locale: Locale, categoryIds: ID[]
             locale,
             pagination: false,
             select: { brand: true, category: true, publicPrice: true, stockStatus: true },
-            where: { and: [PUBLISHED_PRODUCT, { category: { in: categoryIds } }] }
+            where: { and: [PUBLISHED_PRODUCT, ...scopeWhere] }
           }),
           getBrands(locale)
         ])

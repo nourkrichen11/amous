@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { EmptyState } from '@/components/ui/EmptyState'
 import type { BrandItem } from '@/features/catalogue/types'
 import type { Locale } from '@/i18n/config'
+import { t } from '@/i18n/config'
 
 import { HomepageSectionShell } from './HomepageSectionShell'
 
@@ -14,15 +15,21 @@ type PartnerBrandsSectionProps = {
 
 export function PartnerBrandsSection({ brands, locale }: PartnerBrandsSectionProps) {
   return (
-    <HomepageSectionShell id="marques" subtitle="Des marques reconnues pour leur qualité et leur fiabilité." title="Nos Marques Partenaires">
+    <HomepageSectionShell
+      actionHref={`/${locale}/marques`}
+      actionLabel="Toutes les marques"
+      id="marques"
+      subtitle="Des marques reconnues pour leur qualité et leur fiabilité."
+      title="Nos Marques Partenaires"
+    >
       {brands.length > 0 ? (
         <ul className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-6" role="list">
           {brands.map((brand) => (
             <li className="min-w-0" key={String(brand.id)}>
               <Link
-                aria-label={`Voir les produits ${brand.name}`}
+                aria-label={`${brand.name} — ${t(locale, 'brands.viewProducts')}`}
                 className="group flex h-[76px] items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white px-3 py-3 transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[var(--shadow-hover)] sm:h-[88px] sm:px-4"
-                href={`/${locale}/boutique?brand=${encodeURIComponent(brand.slug)}`}
+                href={`/${locale}/marques/${encodeURIComponent(brand.slug)}`}
                 title={brand.name}
               >
                 {brand.logo?.url ? (

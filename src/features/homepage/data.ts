@@ -4,6 +4,7 @@ import type { MediaItem } from '@/features/catalogue/types'
 import type { Locale } from '@/i18n/config'
 import { t } from '@/i18n/config'
 
+import { upgradeLegacyBrandsLink } from './navigation'
 import type { HeaderData, HeaderNavItem, HeroSlide } from './types'
 
 type MediaDoc = {
@@ -53,7 +54,7 @@ function getFallbackNavigation(locale: Locale): HeaderNavItem[] {
     { id: 'home', label: t(locale, 'navigation.home'), url: `/${locale}` },
     { id: 'shop', label: t(locale, 'navigation.shop'), url: `/${locale}/boutique` },
     { id: 'categories', isCategoryTrigger: true, label: t(locale, 'navigation.categories'), url: `/${locale}/nos-categories` },
-    { id: 'brands', label: t(locale, 'navigation.brands'), url: `/${locale}/boutique` },
+    { id: 'brands', label: t(locale, 'navigation.brands'), url: `/${locale}/marques` },
     { id: 'promotions', label: t(locale, 'navigation.promotions'), url: `/${locale}/boutique?promotion=1` },
     { id: 'new', label: t(locale, 'navigation.newArrivals'), url: `/${locale}/boutique?sort=new` },
     { id: 'pro', label: t(locale, 'navigation.professionals'), url: `/${locale}/recherche?q=pro` },
@@ -113,7 +114,8 @@ function mapNavigation(locale: Locale, items?: HeaderGlobalDoc['navigationItems'
         isCategoryTrigger: item.isCategoryTrigger,
         label: item.label || '',
         url: item.url || '#'
-      })) ?? []
+      }))
+      .map((item) => upgradeLegacyBrandsLink(item, locale)) ?? []
 
   return mapped.length > 0 ? mapped.slice(0, 9) : getFallbackNavigation(locale)
 }

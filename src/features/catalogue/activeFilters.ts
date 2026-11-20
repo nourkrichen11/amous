@@ -74,12 +74,10 @@ export function getActiveFilters({ brands, categories = [], params, path, subcat
   }
 
   if (params.minPrice || params.maxPrice) {
-    const label =
-      params.minPrice && params.maxPrice
-        ? `${formatPrice(params.minPrice)} – ${formatPrice(params.maxPrice)}`
-        : params.minPrice
-          ? `Dès ${formatPrice(params.minPrice)}`
-          : `Jusqu’à ${formatPrice(params.maxPrice ?? '')}`
+    // Show the range in the same order the query uses (inverted bounds are swapped).
+    let [low, high] = [params.minPrice, params.maxPrice]
+    if (low && high && Number(low) > Number(high)) [low, high] = [high, low]
+    const label = low && high ? `${formatPrice(low)} – ${formatPrice(high)}` : low ? `Dès ${formatPrice(low)}` : `Jusqu’à ${formatPrice(high ?? '')}`
     filters.push({ href: remove({ maxPrice: null, minPrice: null }), key: 'price', label })
   }
 
