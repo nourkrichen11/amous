@@ -2,6 +2,8 @@ import { revalidateTag, unstable_cache } from 'next/cache'
 
 import type { Locale } from '@/i18n/config'
 
+const STOREFRONT_CACHE_VERSION = 'v2'
+
 export const STOREFRONT_TAGS = {
   brands: 'brands',
   categories: 'categories',
@@ -26,11 +28,11 @@ export const STOREFRONT_REVALIDATE = {
 } as const
 
 export function cacheWithKey<T>(keyParts: string[], loader: () => Promise<T>, options: { revalidate: number; tags: string[] }) {
-  return unstable_cache(loader, keyParts, options)()
+  return unstable_cache(loader, [STOREFRONT_CACHE_VERSION, ...keyParts], options)()
 }
 
 export function cacheByLocale<T>(key: string, locale: Locale, loader: () => Promise<T>, options: { revalidate: number; tags: string[] }) {
-  return unstable_cache(loader, [key, locale], options)()
+  return unstable_cache(loader, [STOREFRONT_CACHE_VERSION, key, locale], options)()
 }
 
 export function cacheBySlug<T>(
@@ -40,7 +42,7 @@ export function cacheBySlug<T>(
   loader: () => Promise<T>,
   options: { revalidate: number; tags: string[] }
 ) {
-  return unstable_cache(loader, [key, locale, slug], options)()
+  return unstable_cache(loader, [STOREFRONT_CACHE_VERSION, key, locale, slug], options)()
 }
 
 export async function revalidateStorefrontTags(tags: string[]) {

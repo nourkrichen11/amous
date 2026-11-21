@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const ENV_KEYS = ['BLOB_READ_WRITE_TOKEN', 'DATABASE_URI', 'PAYLOAD_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
+const ENV_KEYS = ['BLOB_READ_WRITE_TOKEN', 'DATABASE_URI', 'NEXT_PUBLIC_SITE_URL', 'PAYLOAD_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'] as const
 
 function snapshotEnv() {
   return Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]))
@@ -76,6 +76,21 @@ describe('getServerEnv', () => {
 
       const { getServerEnv } = await import('./env')
       expect(() => getServerEnv()).toThrow(/BLOB_READ_WRITE_TOKEN/)
+    } finally {
+      restoreEnv(snapshot)
+    }
+  })
+
+  it('rejects the deployment URL placeholder', async () => {
+    const snapshot = snapshotEnv()
+    try {
+      vi.stubEnv('NODE_ENV', 'test')
+      process.env.DATABASE_URI = 'postgres://test'
+      process.env.PAYLOAD_SECRET = 'a'.repeat(20)
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://replace_with_your_domain'
+
+      const { getServerEnv } = await import('./env')
+      expect(() => getServerEnv()).toThrow(/real deployed site URL/)
     } finally {
       restoreEnv(snapshot)
     }

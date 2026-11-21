@@ -5,7 +5,11 @@ const serverSchema = z
     DATABASE_URI: z.string().min(1, 'DATABASE_URI is required. Add it to .env.local.'),
     PAYLOAD_SECRET: z.string().min(16, 'PAYLOAD_SECRET must be at least 16 characters.'),
     BLOB_READ_WRITE_TOKEN: z.string().min(1, 'BLOB_READ_WRITE_TOKEN cannot be empty.').optional(),
-    NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
+    NEXT_PUBLIC_SITE_URL: z
+      .string()
+      .url()
+      .refine((value) => !value.includes('replace_with_your_domain'), 'NEXT_PUBLIC_SITE_URL must contain the real deployed site URL.')
+      .default('http://localhost:3000'),
     NEXT_PUBLIC_DEFAULT_LOCALE: z.enum(['fr', 'ar']).default('fr'),
     // Optional in development (falls back to a console-log email adapter —
     // see src/lib/email/index.ts). Required in production: transactional
